@@ -1,0 +1,14 @@
+// Declaración e inicialización de variables
+var var1 int = 10
+var var2 float64 = 0.0
+// Correcto: Operación -= con valores del mismo tipo
+var1 -= 10 // var1 tendrá el valor de 0
+fmt.Println("var1 después de -= 10:", var1)
+// Error: No se puede asignar un float64 a un int
+// var1 -= 10.0
+// Correcto: Operación -= con valores float64
+var2 -= 10 // var2 tendrá el valor de -10.0
+fmt.Println("var2 después de -= 10:", var2)
+// Correcto: Operación -= con valores del mismo tipo (float64)
+var2 -= 10.0 // var2 tendrá el valor de -20.0
+fmt.Println("var2 después de -= 10.0:", var2)
