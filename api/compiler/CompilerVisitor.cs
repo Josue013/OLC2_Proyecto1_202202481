@@ -260,7 +260,7 @@ public override ValueWrapper VisitPrintStmt(LanguageParser.PrintStmtContext cont
                 // IntValue * IntValue
                 (IntValue l, IntValue r, "*") => new IntValue(l.Value * r.Value),
                 // IntValue / IntValue
-                (IntValue l, IntValue r, "/") => new IntValue(l.Value / r.Value),
+                (IntValue l, IntValue r, "/") => new DecimalValue((decimal) l.Value / r.Value),
                 // IntValue * DecimalValue
                 (IntValue l, DecimalValue r, "*") => new DecimalValue(l.Value * r.Value),
                 // IntValue / DecimalValue
@@ -546,6 +546,54 @@ public override ValueWrapper VisitPrintStmt(LanguageParser.PrintStmtContext cont
         }
     }
 
+    // VisitLogical
+    public override ValueWrapper VisitLogical(LanguageParser.LogicalContext context)
+    {
+        ValueWrapper left = Visit(context.expr(0));
+        ValueWrapper right = Visit(context.expr(1));
 
+        var operador = context.op.Text;
+
+        try
+        {
+            return (left, right, operador) switch
+            {
+                // BoolValue && BoolValue
+                (BoolValue l, BoolValue r, "&&") => new BoolValue(l.Value && r.Value),
+                // BoolValue || BoolValue
+                (BoolValue l, BoolValue r, "||") => new BoolValue(l.Value || r.Value),
+
+                _ => throw new System.Exception($"Operacion invalida {left.GetType()} {operador} {right.GetType()}")
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitNot
+    public override ValueWrapper VisitNot(LanguageParser.NotContext context)
+    {
+        ValueWrapper value = Visit(context.expr());
+
+        try
+        {
+            return value switch
+            {
+                // !BoolValue
+                BoolValue b => new BoolValue(!b.Value),
+                _ => throw new System.Exception($"Operacion invalida !{value.GetType()}")
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
 
 }

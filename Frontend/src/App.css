@@ -54,9 +54,39 @@
   max-width: 100%;
 }
 
+.output {
+  height: auto;
+  overflow-y: auto;
+}
+
+.output::-webkit-scrollbar {
+  width: 13px; 
+}
+
+.output::-webkit-scrollbar-track {
+  background: #222; 
+  border-radius: 10px;
+}
+
+.output::-webkit-scrollbar-thumb {
+  background-color: #888; 
+  border-radius: 10px;
+  border: 3px solid #f1f1f1;
+}
+
+.output::-webkit-scrollbar-thumb:hover {
+  background: #555; 
+}
+
+.output-pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
 pre {
   padding-left: 0.5rem;
   line-height: 1.5;
+  font-size: 0.725rem;
 }
 
 @media (min-width: 768px) {

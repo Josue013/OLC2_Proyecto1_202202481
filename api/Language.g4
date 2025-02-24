@@ -12,25 +12,30 @@ varDcl: 'var' ID type ('=' expr)?;
 
 stmt:
 	expr 						# ExprStmt
-	| 'fmt.Println(' exprList ')'	# PrintStmt;
+	| 'fmt.Println(' exprList ')'	# PrintStmt
+	;
 
 type: 'int' 
 	| 'float64' 
 	| 'string' 
 	| 'bool' 
-	| 'rune';
+	| 'rune'
+	;
 
 exprList:
 	expr (',' expr)* 
 	; 
 
 expr:
+
+	'(' expr ')' # Parens
 	
 	// Arithmetic operations
-	'-' expr						# Negate
+	| '-' expr						# Negate
+	| '!' expr						# Not
 	| expr op = ('*' | '/') expr	# MulDiv
-	| expr op = ('+' | '-') expr	# AddSub
 	| expr '%' expr					# Mod
+	| expr op = ('+' | '-') expr	# AddSub
 	| ID '+=' expr					# AddAssign
 	| ID '-=' expr					# SubAssign
 
@@ -49,8 +54,7 @@ expr:
 
 	// Logical operations
 	| expr op = ('&&' | '||') expr	# Logical
-	| '!' expr						# Not
-
+	
 	// Primitive data types
 	| INT		# Int
 	| DECIMAL	# Decimal
@@ -58,7 +62,6 @@ expr:
 	| STRING	# String
 	| BOOL		# Bool
 	| ID		# Identifier
-	| '(' expr ')' # Parens
 	;
 
 // Sentences of control
