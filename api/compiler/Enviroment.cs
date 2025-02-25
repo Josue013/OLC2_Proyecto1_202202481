@@ -2,7 +2,12 @@ public class Environment
 {
 
     public Dictionary<string, ValueWrapper> variables = new Dictionary<string, ValueWrapper>();
-    // TODO: parent environment
+    public Environment? parent;
+
+    public Environment(Environment? parent)
+    {
+        this.parent = parent;
+    }
 
     public ValueWrapper GetVariable(string id)
     {
@@ -10,10 +15,14 @@ public class Environment
         {
             return variables[id];
         }
-        else
+        
+        // Si no se encuentra la variable en el entorno actual se busca en el entorno padre
+        if (parent != null)
         {
-            throw new Exception("Variable " + id + " not found");
+            return parent.GetVariable(id);
         }
+
+        throw new Exception("Variable " + id + " not found");
     }
 
     public void DeclareVariable(string id, ValueWrapper value)
@@ -35,10 +44,14 @@ public class Environment
             variables[id] = value;
             return value;
         }
-        else
+
+        // Si no se encuentra la variable en el entorno actual se busca en el entorno padre
+        if (parent != null)
         {
-            throw new Exception("Variable " + id + " not found");
+            return parent.AssignVariable(id, value);
         }
+
+        throw new Exception("Variable " + id + " not found");
     }
 
 }

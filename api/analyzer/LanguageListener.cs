@@ -86,6 +86,18 @@ public interface ILanguageListener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitPrintStmt([NotNull] LanguageParser.PrintStmtContext context);
 	/// <summary>
+	/// Enter a parse tree produced by the <c>BlockStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterBlockStmt([NotNull] LanguageParser.BlockStmtContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>BlockStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitBlockStmt([NotNull] LanguageParser.BlockStmtContext context);
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="LanguageParser.type"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

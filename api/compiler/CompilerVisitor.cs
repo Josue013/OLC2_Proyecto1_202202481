@@ -1,6 +1,7 @@
 
 using analyzer;
 using Antlr4.Runtime.Misc;
+using System.Text;
 
 
 public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
@@ -8,7 +9,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
 
     private ValueWrapper defaultValue = new VoidValue();
     public string output = "";
-    private Environment currentEnvironment = new Environment();
+    private Environment currentEnvironment = new Environment(null);
     public List<Errores> errores = new List<Errores>();
 
     // VisitProgram
@@ -48,7 +49,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         return type switch
         {
             "int" => new IntValue(0),
-            "float64" => new DecimalValue(0),
+            "float64" => new DecimalValue((decimal)0.0),
             "bool" => new BoolValue(false),
             "string" => new StringValue(""),
             "rune" => new RuneValue('\0'),
@@ -78,20 +79,27 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             }
             else if (signo == "=")
             {
-                if (!currentEnvironment.variables.ContainsKey(id))
+                if (!currentEnvironment.variables.ContainsKey(id) && currentEnvironment.parent == null)
                 {
                     throw new Exception("Error: La variable " + id + " no ha sido declarada.");
                 }
 
                 var valorAntiguo = currentEnvironment.GetVariable(id);
 
-                if (valorAntiguo.GetType() != value.GetType())
+                // Verificar si los tipos coinciden o si es una conversión implícita de int a float64
+                if (valorAntiguo.GetType() != value.GetType() && !(valorAntiguo is DecimalValue && value is IntValue))
                 {
                     throw new Exception("Error: El tipo de dato de la variable " + id + " no coincide.");
                     //errores.Add(new Errores("Error", "El tipo de dato de la variable " + id + " no coincide.", context.Start.Line, context.Start.Column));
                 }
                 else
                 {
+                    // Realizar la conversión implícita de int a float64 si es necesario
+                    if (valorAntiguo is DecimalValue && value is IntValue)
+                    {
+                        value = new DecimalValue(((IntValue)value).Value);
+                    }
+
                     Console.WriteLine("La variable " + id + " cambio de valor de " + valorAntiguo + " a " + value);
                     currentEnvironment.AssignVariable(id, value);
                 }
@@ -105,6 +113,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
 
         return value;
     }
+
     // VisitExprStmt
     public override ValueWrapper VisitExprStmt(LanguageParser.ExprStmtContext context)
     {
@@ -112,56 +121,76 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     }
 
     // VisitPrintStmt
-public override ValueWrapper VisitPrintStmt(LanguageParser.PrintStmtContext context)
-{
-    bool flag = false;
-
-    // Recorrer cada expresion
-    foreach (var expr in context.exprList().expr())
+    public override ValueWrapper VisitPrintStmt(LanguageParser.PrintStmtContext context)
     {
-        // Parsear la salida
-        ValueWrapper value = Visit(expr);
-        switch (value)
-        {
-            case IntValue i:
-                output += i.Value.ToString();
-                flag = true;
-                break;
-            case DecimalValue d:
-                output += d.Value.ToString();
-                flag = true;
-                break;
-            case BoolValue b:
-                output += b.Value.ToString();
-                flag = true;
-                break;
-            case StringValue s:
-                output += s.Value;
-                flag = true;
-                break;
-            case RuneValue r:
-                output += r.Value.ToString();
-                flag = true;
-                break;
-            case VoidValue:
-                // No hacer nada para VoidValue
-                break;
-            default:
-                throw new System.Exception($"No se puede imprimir el valor {value}");
-        }
-        if (flag)
-        {
-            output += " ";
-        }
-    }
+        bool flag = false;
+        StringBuilder OutputTemporal = new StringBuilder();
 
-    if (flag)
-    {
-        output += "\n";
-    }
+        try
+        {
+            // Recorrer cada expresion
+            foreach (var expr in context.exprList().expr())
+            {
+                try
+                {
+                    // Parsear la salida
+                    ValueWrapper value = Visit(expr);
+                    switch (value)
+                    {
+                        case IntValue i:
+                            OutputTemporal.Append(i.Value.ToString());
+                            flag = true;
+                            break;
+                        case DecimalValue d:
+                            OutputTemporal.Append(d.Value.ToString("0.0"));
+                            flag = true;
+                            break;
+                        case BoolValue b:
+                            OutputTemporal.Append(b.Value.ToString());
+                            flag = true;
+                            break;
+                        case StringValue s:
+                            OutputTemporal.Append(s.Value);
+                            flag = true;
+                            break;
+                        case RuneValue r:
+                            OutputTemporal.Append(r.Value.ToString());
+                            flag = true;
+                            break;
+                        case VoidValue:
+                            // No hacer nada para VoidValue
+                            break;
+                        default:
+                            throw new System.Exception($"No se puede imprimir el valor {value}");
+                    }
+                    if (flag)
+                    {
+                        OutputTemporal.Append(" ");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine(ex.Message);
+                    errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+                    return defaultValue; // Si hay un error, no imprimir nada
+                }
+            }
 
-    return defaultValue;
-}
+            if (flag)
+            {
+                OutputTemporal.Append("\n");
+            }
+
+            output += OutputTemporal.ToString();
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+        }
+
+        return defaultValue;
+    }
 
     // VisitIdentifier
     public override ValueWrapper VisitIdentifier(LanguageParser.IdentifierContext context)
@@ -244,6 +273,23 @@ public override ValueWrapper VisitPrintStmt(LanguageParser.PrintStmtContext cont
         return new RuneValue(text[0]);
     }
 
+    // VisitBlockStmt
+    public override ValueWrapper VisitBlockStmt(LanguageParser.BlockStmtContext context)
+    {
+        Environment PreviousEnvironment = currentEnvironment; // Guardar referencia al entorno anterior
+        currentEnvironment = new Environment(PreviousEnvironment); // Crear un nuevo entorno (el del bloque)
+
+        // Se recorren las instrucciones del bloque
+        foreach (var stmt in context.dcl())
+        {
+            Visit(stmt);
+        }
+
+        currentEnvironment = PreviousEnvironment; // Restaurar el entorno anterior
+        return defaultValue;
+
+    }
+
     // VisitMulDiv
     public override ValueWrapper VisitMulDiv(LanguageParser.MulDivContext context)
     {
@@ -260,7 +306,7 @@ public override ValueWrapper VisitPrintStmt(LanguageParser.PrintStmtContext cont
                 // IntValue * IntValue
                 (IntValue l, IntValue r, "*") => new IntValue(l.Value * r.Value),
                 // IntValue / IntValue
-                (IntValue l, IntValue r, "/") => new DecimalValue((decimal) l.Value / r.Value),
+                (IntValue l, IntValue r, "/") => new DecimalValue((decimal)l.Value / r.Value),
                 // IntValue * DecimalValue
                 (IntValue l, DecimalValue r, "*") => new DecimalValue(l.Value * r.Value),
                 // IntValue / DecimalValue

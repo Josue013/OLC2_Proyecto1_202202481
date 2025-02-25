@@ -1,0 +1,27 @@
+
+fmt.Println("*********** SUMA ***********\n")
+
+fmt.Println("int + int = int")
+fmt.Println(1+1,"\n")
+
+fmt.Println("int + float64 = float64")
+fmt.Println(1+1.0,"\n")
+
+fmt.Println("float64 + float64 = float64")
+fmt.Println(1.0+13.0,"\n")
+
+fmt.Println("float64 + int = float64")
+fmt.Println(1.0 +1,"\n")
+
+fmt.Println("string + string = string")
+fmt.Println("ho"+"la","\n")
+
+fmt.Println("*********** RESTA ***********\n")
+
+fmt.Println("*********** MULTIPLICACION ***********\n")
+
+fmt.Println("*********** DIVISION ***********\n")
+
+fmt.Println("*********** MODULO ***********\n")
+
+fmt.Println("*********** NEGACION UNARIA ***********\n")
