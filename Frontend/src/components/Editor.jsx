@@ -27,7 +27,7 @@ function CodeEditor({ code, setCode }) {
       value={code}
       onChange={(value) => setCode(value || '')}
       options={{
-        fontSize: 16,
+        fontSize: 12,
         scrollBeyondLastLine: false,
         automaticLayout: true,
         wordWrap: 'on',

@@ -16,6 +16,7 @@ stmt:
 	| '{' dcl* '}'									# BlockStmt
 	// Sentences of control
 	| 'if' expr stmt ('else' stmt)? # IfStmt
+	| 'switch' expr '{' ('case' expr ':' stmt*)* ('default' ':' stmt*)? '}' # SwitchStmt
 	;
 
 type: 'int' 

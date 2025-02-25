@@ -648,7 +648,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     public override ValueWrapper VisitIfStmt(LanguageParser.IfStmtContext context)
     {
         ValueWrapper condition = Visit(context.expr());
-        
+
         try
         {
             // validar que la condicion sea booleana 
@@ -674,5 +674,68 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
 
         return defaultValue;
     }
+
+    // VisitSwitchStmt
+    public override ValueWrapper VisitSwitchStmt(LanguageParser.SwitchStmtContext context)
+    {
+        try
+        {
+            bool Matched = false;
+            ValueWrapper switchValue = Visit(context.expr(0));
+
+            // Obtener todos los casos del switch
+            var children = context.children;
+
+            // Recorrer los hijos
+            for (int i = 0; i < children.Count; i++)
+            {
+                // Si se encuentra un case
+                if (children[i].GetText() == "case")
+                {
+                    // El siguiente hijo es el valor del case
+                    ValueWrapper caseValue = Visit(children[i + 1] as LanguageParser.ExprContext);
+
+                    // Verificar si los valores coinciden
+                    if (switchValue.Equals(caseValue))
+                    {
+                        Matched = true;
+                        i += 3;
+                        // Ejecutar las instrucciones hasta encontrar otro case o el final
+                        while (i < children.Count && children[i].GetText() != "case" && children[i].GetText() != "default")
+                        {
+                            if (children[i] is LanguageParser.StmtContext stmtContext)
+                            {
+                                Visit(stmtContext);
+                            }
+                            i++;
+                        }
+                        break;
+                    }
+                }
+                // Si se encuentra un default
+                else if (children[i].GetText() == "default" && !Matched)
+                {
+                    i += 2;
+                    // Ejecutar las instrucciones
+                    while (i < children.Count && children[i].GetText() != "}")
+                    {
+                        if (children[i] is LanguageParser.StmtContext stmtContext)
+                        {
+                            Visit(stmtContext);
+                        }
+                        i++;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+        }
+
+        return defaultValue;
+    }
+
 
 }

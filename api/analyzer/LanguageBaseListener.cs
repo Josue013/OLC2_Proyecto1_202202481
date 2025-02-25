@@ -129,6 +129,20 @@ public partial class LanguageBaseListener : ILanguageListener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitIfStmt([NotNull] LanguageParser.IfStmtContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by the <c>SwitchStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterSwitchStmt([NotNull] LanguageParser.SwitchStmtContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>SwitchStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitSwitchStmt([NotNull] LanguageParser.SwitchStmtContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="LanguageParser.type"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>
