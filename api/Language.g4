@@ -11,9 +11,11 @@ dcl: varDcl | stmt;
 varDcl: 'var' ID type ('=' expr)?;
 
 stmt:
-	expr 													# ExprStmt
-	| 'fmt.Println(' exprList ')'	# PrintStmt
-	| '{' dcl* '}'								# BlockStmt
+	expr 														# ExprStmt
+	| 'fmt.Println(' exprList ')'		# PrintStmt
+	| '{' dcl* '}'									# BlockStmt
+	// Sentences of control
+	| 'if' expr stmt ('else' stmt)? # IfStmt
 	;
 
 type: 'int' 
@@ -64,8 +66,6 @@ expr:
 	| BOOL		# Bool
 	| ID			# Identifier
 	;
-
-// Sentences of control
 
 INT: [0-9]+;
 DECIMAL: [0-9]+ ('.' [0-9]+);

@@ -642,4 +642,37 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         }
     }
 
+    // ******** Sentencias de control ********
+
+    // VisitIfStmt
+    public override ValueWrapper VisitIfStmt(LanguageParser.IfStmtContext context)
+    {
+        ValueWrapper condition = Visit(context.expr());
+        
+        try
+        {
+            // validar que la condicion sea booleana 
+            if (condition is not BoolValue)
+            {
+                errores.Add(new Errores("Semantico", "La condicion del if debe ser de tipo booleana", context.Start.Line, context.Start.Column));
+            }
+
+            if ((condition as BoolValue).Value)
+            {
+                Visit(context.stmt(0));
+            }
+            else if (context.stmt().Length > 1) // si hay un else
+            {
+                Visit(context.stmt(1));
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+        }
+
+        return defaultValue;
+    }
+
 }
