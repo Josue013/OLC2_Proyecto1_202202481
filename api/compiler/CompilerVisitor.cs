@@ -737,5 +737,131 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         return defaultValue;
     }
 
+    // VisitIncdec
+    public override ValueWrapper VisitIncdec(LanguageParser.IncdecContext context)
+    {
+        string id = context.ID().GetText();
+        ValueWrapper value = currentEnvironment.GetVariable(id);
+
+        try
+        {
+            if (value is IntValue)
+            {
+                if (context.op.Text == "++")
+                {
+                    value = new IntValue((value as IntValue).Value + 1);
+                }
+                else
+                {
+                    value = new IntValue((value as IntValue).Value - 1);
+                }
+            }
+            else if (value is DecimalValue)
+            {
+                if (context.op.Text == "++")
+                {
+                    value = new DecimalValue((value as DecimalValue).Value + 1);
+                }
+                else
+                {
+                    value = new DecimalValue((value as DecimalValue).Value - 1);
+                }
+            }
+            else
+            {
+                throw new Exception("Error: Solo se pueden incrementar o decrementar variables de tipo int o float64.");
+            }
+
+            return currentEnvironment.AssignVariable(id, value);
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitIncDecStmt
+
+
+    // ******** Ciclos ********
+
+    // VisitForWhileStmt
+    public override ValueWrapper VisitForWhileStmt(LanguageParser.ForWhileStmtContext context)
+    {
+        try
+        {
+            ValueWrapper condition = Visit(context.expr());
+
+            // Verificar que sea de tipo booleano
+            if (condition is not BoolValue)
+            {
+                throw new Exception("La condicion del for debe ser de tipo booleana");
+            }
+
+            // Mientras la condicion sea verdadera
+            while ((condition as BoolValue).Value)
+            {
+                Visit(context.stmt());
+                condition = Visit(context.expr());
+            }
+
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitForClassicStmt
+    public override ValueWrapper VisitForClassicStmt(LanguageParser.ForClassicStmtContext context)
+    {
+        try
+        {
+            // Crear un nuevo entorno para el for
+            Environment previousEnvironment = currentEnvironment;
+            currentEnvironment = new Environment(previousEnvironment);
+
+            // Ejecutar la inicialización
+            Visit(context.expr(0));
+
+            // Mientras la condición sea verdadera
+            while (true)
+            {
+                // Evaluar la condición
+                ValueWrapper condition = Visit(context.expr(1));
+
+                if (condition is not BoolValue)
+                {
+                    throw new Exception("La condición del for debe ser de tipo booleana");
+                }
+
+                if (!(condition as BoolValue).Value)
+                {
+                    break;
+                }
+
+                // Ejecutar el cuerpo del for
+                Visit(context.stmt());
+
+                // Ejecutar el incremento/decremento
+                Visit(context.incdec());
+            }
+
+            // Restaurar el entorno anterior
+            currentEnvironment = previousEnvironment;
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
 
 }

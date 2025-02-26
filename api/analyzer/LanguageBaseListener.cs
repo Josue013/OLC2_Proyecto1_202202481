@@ -143,6 +143,74 @@ public partial class LanguageBaseListener : ILanguageListener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitSwitchStmt([NotNull] LanguageParser.SwitchStmtContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by the <c>ForWhileStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterForWhileStmt([NotNull] LanguageParser.ForWhileStmtContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>ForWhileStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitForWhileStmt([NotNull] LanguageParser.ForWhileStmtContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>ForClassicStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterForClassicStmt([NotNull] LanguageParser.ForClassicStmtContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>ForClassicStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitForClassicStmt([NotNull] LanguageParser.ForClassicStmtContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>ForRangeStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterForRangeStmt([NotNull] LanguageParser.ForRangeStmtContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>ForRangeStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitForRangeStmt([NotNull] LanguageParser.ForRangeStmtContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>IncDecStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterIncDecStmt([NotNull] LanguageParser.IncDecStmtContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>IncDecStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitIncDecStmt([NotNull] LanguageParser.IncDecStmtContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="LanguageParser.incdec"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterIncdec([NotNull] LanguageParser.IncdecContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="LanguageParser.incdec"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitIncdec([NotNull] LanguageParser.IncdecContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="LanguageParser.type"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>

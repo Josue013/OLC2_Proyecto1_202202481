@@ -6,7 +6,7 @@ options { caseInsensitive = false; }
 
 program: dcl*;
 
-dcl: varDcl | stmt;
+dcl: varDcl | stmt (';')?;
 
 varDcl: 'var' ID type ('=' expr)?;
 
@@ -17,7 +17,17 @@ stmt:
 	// Sentences of control
 	| 'if' expr stmt ('else' stmt)? # IfStmt
 	| 'switch' expr '{' ('case' expr ':' stmt*)* ('default' ':' stmt*)? '}' # SwitchStmt
+	// Loops
+	| 'for' expr stmt 									# ForWhileStmt
+	| 'for' expr ';' expr ';' incdec stmt    # ForClassicStmt
+	| 'for' ID 'range' expr stmt 				# ForRangeStmt
+	// inc/dec
+	//| ID op= ('++' | '--')							# IncDecStmt
+	| incdec													# IncDecStmt
 	;
+
+incdec: ID op= ('++' | '--')
+;
 
 type: 'int' 
 	| 'float64' 

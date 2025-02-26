@@ -86,6 +86,40 @@ public interface ILanguageVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitSwitchStmt([NotNull] LanguageParser.SwitchStmtContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>ForWhileStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitForWhileStmt([NotNull] LanguageParser.ForWhileStmtContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>ForClassicStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitForClassicStmt([NotNull] LanguageParser.ForClassicStmtContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>ForRangeStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitForRangeStmt([NotNull] LanguageParser.ForRangeStmtContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>IncDecStmt</c>
+	/// labeled alternative in <see cref="LanguageParser.stmt"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitIncDecStmt([NotNull] LanguageParser.IncDecStmtContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="LanguageParser.incdec"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitIncdec([NotNull] LanguageParser.IncdecContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="LanguageParser.type"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
