@@ -66,3 +66,30 @@ case "difícil":
 default:
   fmt.Println("Nivel no definido")
 }
+
+
+fmt.Println("\nEjemplo con break explícito:")
+
+num2 := 3
+
+switch num2 {
+case 1:
+    fmt.Println("Uno")
+    break 
+    fmt.Println("Esto no deberia salir xd")
+case 2:
+    fmt.Println("Dos")
+    break // Salir del switch
+    fmt.Println("Esto no deberia salir xd")
+case 3:
+    fmt.Println("Tres")
+    break
+    fmt.Println("Esto no deberia salir xd")
+default:
+    fmt.Println("Número inválido")
+}
+
+
+
+
+

@@ -1,0 +1,9 @@
+
+
+for i := 0; i < 10; i++ {
+  if i == 5 {
+    fmt.Println("Se encontró un break en i =", i)
+    break // Finaliza el bucle cuando i es igual a 5
+  }
+  fmt.Println(i)
+}

@@ -1,0 +1,11 @@
+// Declaración con inicialización de valores
+numbers := []int {1, 2, 3, 4, 5};
+// Declaración de slice vacío
+var slice []int
+
+slice = numbers
+
+fmt.Println(slice)
+fmt.Println(numbers)
+fmt.Println(numbers[0], numbers[1], numbers[2], numbers[3], numbers[4])
+

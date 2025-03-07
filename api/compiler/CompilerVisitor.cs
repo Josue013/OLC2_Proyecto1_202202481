@@ -2,6 +2,7 @@
 using analyzer;
 using Antlr4.Runtime.Misc;
 using System.Text;
+using SliceValue = api.compiler.SliceValue;
 
 
 public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
@@ -11,6 +12,24 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     public string output = "";
     private Environment currentEnvironment = new Environment(null);
     public List<Errores> errores = new List<Errores>();
+
+    // Funcion para obtener todos los errores
+    public List<Errores> GetAllErrors()
+    {
+        var allErrors = new List<Errores>();
+        allErrors.AddRange(errores); // Errores del visitor
+        allErrors.AddRange(currentEnvironment.errores); // Errores del entorno actual
+
+        // Recoger errores de entornos padres
+        var env = currentEnvironment.parent;
+        while (env != null)
+        {
+            allErrors.AddRange(env.errores);
+            env = env.parent;
+        }
+
+        return allErrors;
+    }
 
     // VisitProgram
     public override ValueWrapper VisitProgram(LanguageParser.ProgramContext context)
@@ -31,14 +50,14 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         if (context.expr() == null)
         {
             // Valor por defecto
-            currentEnvironment.DeclareVariable(id, ValorPorDefecto(type));
+            currentEnvironment.DeclareVariable(id, ValorPorDefecto(type), context.Start.Line, context.Start.Column);
             return defaultValue;
         }
         else
         {
             // Valor asignado
             ValueWrapper value = Visit(context.expr());
-            currentEnvironment.DeclareVariable(id, value);
+            currentEnvironment.DeclareVariable(id, value, context.Start.Line, context.Start.Column);
             return defaultValue;
         }
     }
@@ -74,7 +93,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                     throw new Exception("Error: La variable " + id + " ya ha sido declarada.");
                 }
 
-                currentEnvironment.DeclareVariable(id, value);
+                currentEnvironment.DeclareVariable(id, value, context.Start.Line, context.Start.Column);
                 Console.WriteLine("Nombre de la variable: " + id + " valor: " + value);
             }
             else if (signo == "=")
@@ -84,7 +103,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                     throw new Exception("Error: La variable " + id + " no ha sido declarada.");
                 }
 
-                var valorAntiguo = currentEnvironment.GetVariable(id);
+                var valorAntiguo = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
 
                 // Verificar si los tipos coinciden o si es una conversión implícita de int a float64
                 if (valorAntiguo.GetType() != value.GetType() && !(valorAntiguo is DecimalValue && value is IntValue))
@@ -101,7 +120,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                     }
 
                     Console.WriteLine("La variable " + id + " cambio de valor de " + valorAntiguo + " a " + value);
-                    currentEnvironment.AssignVariable(id, value);
+                    currentEnvironment.AssignVariable(id, value, context.Start.Line, context.Start.Column);
                 }
             }
         }
@@ -157,6 +176,31 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                             OutputTemporal.Append(r.Value.ToString());
                             flag = true;
                             break;
+                        case SliceValue slice:
+                            // Darle formato al slice [valor1 valor2 valor3]
+                            OutputTemporal.Append("[");
+                            for (int i = 0; i < slice.Values.Count; i++)
+                            {
+                                var currentValue = slice.Values[i];
+                                // Parsear el valor
+                                string valueStr = currentValue switch
+                                {
+                                    IntValue iv => iv.Value.ToString(),
+                                    DecimalValue dv => dv.Value.ToString("0.0"),
+                                    BoolValue bv => bv.Value.ToString().ToLower(),
+                                    StringValue sv => sv.Value,
+                                    RuneValue rv => rv.Value.ToString(),
+                                    _ => currentValue.ToString()
+                                };
+                                OutputTemporal.Append(valueStr);
+                                if (i < slice.Values.Count - 1)
+                                {
+                                    OutputTemporal.Append(", ");
+                                }
+                            }
+                            OutputTemporal.Append("]");
+                            flag = true;
+                            break;
                         case VoidValue:
                             // No hacer nada para VoidValue
                             break;
@@ -196,7 +240,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     public override ValueWrapper VisitIdentifier(LanguageParser.IdentifierContext context)
     {
         string id = context.ID().GetText();
-        return currentEnvironment.GetVariable(id);
+        return currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
     }
 
     // VisitParens
@@ -306,7 +350,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                 // IntValue * IntValue
                 (IntValue l, IntValue r, "*") => new IntValue(l.Value * r.Value),
                 // IntValue / IntValue
-                (IntValue l, IntValue r, "/") => new DecimalValue((decimal)l.Value / r.Value),
+                (IntValue l, IntValue r, "/") => new IntValue(l.Value / r.Value),
                 // IntValue * DecimalValue
                 (IntValue l, DecimalValue r, "*") => new DecimalValue(l.Value * r.Value),
                 // IntValue / DecimalValue
@@ -410,7 +454,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
 
         try
         {
-            ValueWrapper currentValue = currentEnvironment.GetVariable(id);
+            ValueWrapper currentValue = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
 
             ValueWrapper newValue = (currentValue, value) switch
             {
@@ -422,7 +466,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                 _ => throw new System.Exception($"No se puede realizar la operacion {currentValue.GetType()} += {value.GetType()}")
             };
 
-            return currentEnvironment.AssignVariable(id, newValue);
+            return currentEnvironment.AssignVariable(id, newValue, context.Start.Line, context.Start.Column);
         }
         catch (Exception ex)
         {
@@ -440,7 +484,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
 
         try
         {
-            ValueWrapper currentValue = currentEnvironment.GetVariable(id);
+            ValueWrapper currentValue = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
 
             ValueWrapper newValue = (currentValue, value) switch
             {
@@ -452,7 +496,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                 _ => throw new System.Exception("Operacion invalida")
             };
 
-            return currentEnvironment.AssignVariable(id, newValue);
+            return currentEnvironment.AssignVariable(id, newValue, context.Start.Line, context.Start.Column);
         }
         catch (Exception ex)
         {
@@ -666,7 +710,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                 Visit(context.stmt(1));
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException))
         {
             System.Console.WriteLine(ex.Message);
             errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
@@ -700,8 +744,35 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                     {
                         Matched = true;
                         i += 3;
-                        // Ejecutar las instrucciones hasta encontrar otro case o el final
-                        while (i < children.Count && children[i].GetText() != "case" && children[i].GetText() != "default")
+                        try
+                        {
+                            // Ejecutar las instrucciones hasta encontrar otro case o el final
+                            while (i < children.Count && children[i].GetText() != "case" && children[i].GetText() != "default")
+                            {
+                                if (children[i] is LanguageParser.StmtContext stmtContext)
+                                {
+                                    Visit(stmtContext);
+                                }
+                                i++;
+                            }
+                        }
+                        catch (BreakException)
+                        {
+                            // break explicito
+                            break;
+                        }
+                        break; // break implicito
+                    }
+                }
+                // Si se encuentra un default
+                else if (children[i].GetText() == "default" && !Matched)
+                {
+                    i += 2;
+
+                    try
+                    {
+                        // Ejecutar las instrucciones
+                        while (i < children.Count && children[i].GetText() != "}")
                         {
                             if (children[i] is LanguageParser.StmtContext stmtContext)
                             {
@@ -709,26 +780,18 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                             }
                             i++;
                         }
+                    }
+                    catch (BreakException)
+                    {
+                        // Si se encuentra un break, salir del switch
                         break;
                     }
-                }
-                // Si se encuentra un default
-                else if (children[i].GetText() == "default" && !Matched)
-                {
-                    i += 2;
-                    // Ejecutar las instrucciones
-                    while (i < children.Count && children[i].GetText() != "}")
-                    {
-                        if (children[i] is LanguageParser.StmtContext stmtContext)
-                        {
-                            Visit(stmtContext);
-                        }
-                        i++;
-                    }
+
+
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException))
         {
             System.Console.WriteLine(ex.Message);
             errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
@@ -741,7 +804,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     public override ValueWrapper VisitIncdec(LanguageParser.IncdecContext context)
     {
         string id = context.ID().GetText();
-        ValueWrapper value = currentEnvironment.GetVariable(id);
+        ValueWrapper value = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
 
         try
         {
@@ -772,7 +835,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                 throw new Exception("Error: Solo se pueden incrementar o decrementar variables de tipo int o float64.");
             }
 
-            return currentEnvironment.AssignVariable(id, value);
+            return currentEnvironment.AssignVariable(id, value, context.Start.Line, context.Start.Column);
         }
         catch (Exception ex)
         {
@@ -801,15 +864,28 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             }
 
             // Mientras la condicion sea verdadera
-            while ((condition as BoolValue).Value)
-            {
-                Visit(context.stmt());
-                condition = Visit(context.expr());
-            }
 
+            try
+            {
+                while ((condition as BoolValue).Value)
+                {
+                    Visit(context.stmt()); // Bloque de instrucciones
+                    condition = Visit(context.expr()); // volver a evaluar la condicion
+                }
+            }
+            catch (BreakException)
+            {
+                // No hacer nada
+            }
+            catch (ContinueException)
+            {
+                // pasar a la siguiente iteracion
+                Visit(context.expr());
+                VisitForWhileStmt(context);
+            }
             return defaultValue;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException))
         {
             System.Console.WriteLine(ex.Message);
             errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
@@ -822,38 +898,84 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     {
         try
         {
-            // Crear un nuevo entorno para el for
             Environment previousEnvironment = currentEnvironment;
-            currentEnvironment = new Environment(previousEnvironment);
+            currentEnvironment = new Environment(currentEnvironment);
 
-            // Ejecutar la inicialización
-            Visit(context.expr(0));
+            Visit(context.forInit());
 
-            // Mientras la condición sea verdadera
-            while (true)
+            VisitForBody(context);
+
+            currentEnvironment = previousEnvironment;
+            return defaultValue;
+        }
+        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException))
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+
+
+
+    }
+
+    // VisitForBody
+    public void VisitForBody(LanguageParser.ForClassicStmtContext context)
+    {
+        ValueWrapper condition = Visit(context.expr(0));
+        var LastEnvironment = currentEnvironment;
+
+        if (condition is not BoolValue)
+        {
+            throw new Exception("La condicion del for debe ser de tipo booleana");
+        }
+
+        try
+        {
+            while (condition is BoolValue boolCondition && boolCondition.Value)
             {
-                // Evaluar la condición
-                ValueWrapper condition = Visit(context.expr(1));
+                Visit(context.stmt()); // Bloque de instrucciones
+                Visit(context.expr(1)); // Incremento
+                condition = Visit(context.expr(0)); // volver a evaluar la condicion
+            }
+        }
+        catch (BreakException)
+        {
+            currentEnvironment = LastEnvironment;
+        }
+        catch (ContinueException)
+        {
+            currentEnvironment = LastEnvironment;
+            Visit(context.expr(1));
+            VisitForBody(context);
+        }
+    }
 
-                if (condition is not BoolValue)
+
+    /* ***** Slices ***** */
+
+    // VisitSlice1Stmt - Declaración con inicialización de valores
+    public override ValueWrapper VisitSlice1Stmt(LanguageParser.Slice1StmtContext context)
+    {
+        try
+        {
+            string id = context.ID().GetText();
+            string type = context.type().GetText();
+            var values = new List<ValueWrapper>();
+
+            // Recoger los valores iniciales
+            foreach (var expr in context.exprList().expr())
+            {
+                var value = Visit(expr);
+                // Verificar que el valor sea del tipo correcto
+                if (!IsCompatibleType(value, type))
                 {
-                    throw new Exception("La condición del for debe ser de tipo booleana");
+                    throw new Exception($"Error: El valor {value} no es compatible con el tipo {type}");
                 }
-
-                if (!(condition as BoolValue).Value)
-                {
-                    break;
-                }
-
-                // Ejecutar el cuerpo del for
-                Visit(context.stmt());
-
-                // Ejecutar el incremento/decremento
-                Visit(context.incdec());
+                values.Add(value);
             }
 
-            // Restaurar el entorno anterior
-            currentEnvironment = previousEnvironment;
+            currentEnvironment.DeclareSliceWithValues(id, type, values);
             return defaultValue;
         }
         catch (Exception ex)
@@ -862,6 +984,133 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
             return defaultValue;
         }
+    }
+
+    // VisitSlice2Stmt - Declaración de slice vacío
+    public override ValueWrapper VisitSlice2Stmt(LanguageParser.Slice2StmtContext context)
+    {
+        try
+        {
+            string id = context.ID().GetText();
+            string type = context.type().GetText();
+            currentEnvironment.DeclareSlice(id, type);
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitSlice3Stmt - Asignación de valores
+    public override ValueWrapper VisitSlice3Stmt(LanguageParser.Slice3StmtContext context)
+    {
+        try
+        {
+            string id = context.ID().GetText();
+            ValueWrapper indexValue = Visit(context.expr(0));
+            ValueWrapper value = Visit(context.expr(1));
+
+            if (indexValue is not IntValue)
+            {
+                throw new Exception("Error: El índice debe ser un entero");
+            }
+
+            int index = (indexValue as IntValue).Value;
+            var slice = currentEnvironment.GetSlice(id);
+
+            if (!IsCompatibleType(value, slice.Type))
+            {
+                throw new Exception($"Error: No se puede asignar un valor de tipo {value.GetType()} a un slice de tipo {slice.Type}");
+            }
+
+            currentEnvironment.SetSliceElement(id, index, value);
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitSlice6Stmt - Acceso a vector
+    public override ValueWrapper VisitSlice6Stmt(LanguageParser.Slice6StmtContext context)
+    {
+        try
+        {
+            string id = context.ID().GetText();
+            ValueWrapper indexValue = Visit(context.expr());
+
+            // Verificar que el índice sea un entero
+            if (indexValue is not IntValue)
+            {
+                throw new Exception("Error: El índice debe ser un entero");
+            }
+
+            // Obtener el slice
+            SliceValue slice = currentEnvironment.GetSlice(id);
+            int index = (indexValue as IntValue).Value;
+
+            // Verificar que el índice esté en rango
+            if (index < 0 || index >= slice.Values.Count)
+            {
+                throw new Exception($"Error: Índice {index} fuera de rango");
+            }
+
+            // Retornar el valor en la posición indicada
+            return slice.Values[index];
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine(ex.Message);
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // Método auxiliar para verificar compatibilidad de tipos
+    private bool IsCompatibleType(ValueWrapper value, string type)
+    {
+        return (type, value) switch
+        {
+            ("int", IntValue _) => true,
+            ("float64", DecimalValue _) => true,
+            ("float64", IntValue _) => true,
+            ("string", StringValue _) => true,
+            ("bool", BoolValue _) => true,
+            ("rune", RuneValue _) => true,
+            _ => false
+        };
+    }
+
+    // ******** sentencias de transferencia ********
+
+    // VisitBreakStmt
+    public override ValueWrapper VisitBreakStmt(LanguageParser.BreakStmtContext context)
+    {
+        throw new BreakException();
+    }
+
+    // VisitContinueStmt
+    public override ValueWrapper VisitContinueStmt(LanguageParser.ContinueStmtContext context)
+    {
+        throw new ContinueException();
+    }
+
+    // VisitReturnStmt
+    public override ValueWrapper VisitReturnStmt(LanguageParser.ReturnStmtContext context)
+    {
+        ValueWrapper value = defaultValue;
+        if (context.expr() != null)
+        {
+            value = Visit(context.expr());
+        }
+
+        throw new ReturnException(value);
     }
 
 }

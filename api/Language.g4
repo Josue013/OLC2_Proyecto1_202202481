@@ -19,14 +19,41 @@ stmt:
 	| 'switch' expr '{' ('case' expr ':' stmt*)* ('default' ':' stmt*)? '}' # SwitchStmt
 	// Loops
 	| 'for' expr stmt 									# ForWhileStmt
-	| 'for' expr ';' expr ';' incdec stmt    # ForClassicStmt
+	| 'for' forInit ';' expr ';' expr stmt # ForClassicStmt
 	| 'for' ID 'range' expr stmt 				# ForRangeStmt
 	// inc/dec
 	//| ID op= ('++' | '--')							# IncDecStmt
 	| incdec													# IncDecStmt
+	// Slices
+	| slice1													# Slice1xd
+	| slice2													# Slice2xd
+	// Sentencias de transferencia
+	| 'break'													# BreakStmt
+	| 'continue'											# ContinueStmt
+	| 'return' expr?									# ReturnStmt
 	;
 
+forInit: varDcl | expr;
+
 incdec: ID op= ('++' | '--')
+;
+
+slice1:
+	// Declaracion con inicializacion de valores
+	ID ':=' '[]' type '{' exprList '}' # Slice1Stmt
+	// Declaracion de slice vacio
+	| 'var' ID '[]' type # Slice2Stmt
+	// Asignacion de valores
+	| ID '[' expr ']' '=' expr # Slice3Stmt
+	
+;
+
+slice2:
+	// Definicion y asignacion de valores
+	ID ':=' '[][]' type '{' exprList '}' (',' '{' exprList '}')* # Slice4Stmt
+	// Asignacion de valores
+	| ID '[' expr ']' '[' expr ']' '=' expr # Slice5Stmt
+	
 ;
 
 type: 'int' 
@@ -66,6 +93,12 @@ expr:
 	// Assignment operations
 	| ID op=('=' | ':=') expr # Assign
 
+	// Acceso vector
+	| ID '[' expr ']' # Slice6Stmt
+
+	// Acceso matriz
+	| ID '[' expr ']' '[' expr ']' # Slice7Stmt
+
 	// Logical operations
 	| expr op = ('&&' | '||') expr	# Logical
 	
@@ -76,6 +109,8 @@ expr:
 	| STRING	# String
 	| BOOL		# Bool
 	| ID			# Identifier
+
+	| incdec		# IncDecExpr
 	;
 
 INT: [0-9]+;

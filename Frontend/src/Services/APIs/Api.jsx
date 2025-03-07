@@ -9,8 +9,31 @@ const api = axios.create({
 });
 
 // Funciones para interactuar con la api
-
 export const compileCode = async (code) => {
   const {data} = await api.post('/compile', { code });
   return data;
+}
+
+// Función para abrir el AST
+export const openAST = async () => {
+  try {
+    const response = await api.get('/openast', { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    window.open(url);
+  } catch (error) {
+    console.error('Error al abrir el AST:', error);
+  }
+};
+
+// Función para abrir el reporte de errores
+export const openErrorReport = async () => {
+  try {
+    const response = await api.get('/openerror');
+    // crear un blob con el HTML
+    const blob = new Blob([response.data], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url);
+  } catch (error) {
+    console.error('Error al abrir el reporte de errores:', error);
+  }
 }

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import '../styles/Navbar.css';
+import { openAST } from '../Services/APIs/Api';
+import { openErrorReport } from '../Services/APIs/Api';
 
 function Navbar({ runCode, cleanOutput, newFile, openFile, saveFile }) {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -14,8 +16,24 @@ function Navbar({ runCode, cleanOutput, newFile, openFile, saveFile }) {
   const handleMouseLeave = () => {
     timeoutId = setTimeout(() => {
       setShowDropdown(false);
-    }, 300); // Ajusta el tiempo de retraso según sea necesario
+    }, 300); 
   };
+
+  const handleOpenAST = async () => {
+    try {
+      await openAST();
+    } catch (error) {
+      console.error('Error al abrir el AST:', error);
+    }
+  }
+
+  const handleOpenErrors = async () => {
+    try {
+      await openErrorReport();
+    } catch (error) {
+      console.error('Error al abrir el reporte de errores:', error);
+    }
+  }
 
   return (
     <nav className="navbar">
@@ -38,9 +56,9 @@ function Navbar({ runCode, cleanOutput, newFile, openFile, saveFile }) {
         <div className="dropdown" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
           <button className="dropbtn">Reportes</button>
           <div className="dropdown-content" style={{ display: showDropdown ? 'block' : 'none' }}>
-            <a href="#">Reporte de Errores</a>
+            <a href="#" onClick={handleOpenErrors} >Reporte de Errores</a>
             <a href="#">Reporte de Simbolos</a>
-            <a href="#">Reporte de Arbol</a>
+            <a href="#" onClick={handleOpenAST} >Reporte de Arbol</a>
           </div>
         </div>
       </div>
