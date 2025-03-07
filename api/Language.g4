@@ -70,7 +70,10 @@ exprList:
 expr:
 
 	'(' expr ')' # Parens
-
+	// Llamada a funcion
+	| 'strconv.Atoi' call         # AtoiCall
+	| 'strconv.ParseFloat' call       # ParseFloatCall
+	| expr call+ 									# CallExpr
 	// Arithmetic operations
 	| '-' expr										# Negate
 	| '!' expr										# Not
@@ -109,9 +112,10 @@ expr:
 	| STRING	# String
 	| BOOL		# Bool
 	| ID			# Identifier
-
 	| incdec		# IncDecExpr
 	;
+
+call: '(' exprList? ')';
 
 INT: [0-9]+;
 DECIMAL: [0-9]+ ('.' [0-9]+);

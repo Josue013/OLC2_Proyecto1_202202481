@@ -1,0 +1,8 @@
+
+fmt.Println("****** strconv.Atoi *******")
+numero := strconv.Atoi("123")
+fmt.Println("Número:", numero) // Salida: Número: 123
+
+fmt.Println("****** strconv.ParseFloat *******")
+numero1 := strconv.ParseFloat("123.45")
+fmt.Println("Número:", numero1) // Salida: Número: 123.45

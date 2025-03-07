@@ -8,9 +8,14 @@ using SliceValue = api.compiler.SliceValue;
 public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
 {
 
-    private ValueWrapper defaultValue = new VoidValue();
+    public ValueWrapper defaultValue = new VoidValue();
     public string output = "";
-    private Environment currentEnvironment = new Environment(null);
+    public Environment currentEnvironment;
+    public CompilerVisitor()
+    {
+        currentEnvironment = new Environment(null);
+        FuncionesEmbebidas.Generar(currentEnvironment);
+    }
     public List<Errores> errores = new List<Errores>();
 
     // Funcion para obtener todos los errores
@@ -161,7 +166,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                             flag = true;
                             break;
                         case DecimalValue d:
-                            OutputTemporal.Append(d.Value.ToString("0.0"));
+                            OutputTemporal.Append(d.Value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
                             flag = true;
                             break;
                         case BoolValue b:
@@ -199,6 +204,10 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                                 }
                             }
                             OutputTemporal.Append("]");
+                            flag = true;
+                            break;
+                        case FunctionValue f:
+                            OutputTemporal.Append($"<fn {f.Name}>");
                             flag = true;
                             break;
                         case VoidValue:
@@ -1111,6 +1120,73 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         }
 
         throw new ReturnException(value);
+    }
+
+    // VisitCallExpr
+
+    public override ValueWrapper VisitCallExpr(LanguageParser.CallExprContext context)
+    {
+        ValueWrapper callee = Visit(context.expr());
+
+        System.Console.WriteLine(callee);
+
+        foreach (var call in context.call())
+        {
+            if (callee is FunctionValue functionValue)
+            {
+                callee = VisitCall(functionValue.invocable, call.exprList());
+            }
+            else
+            {
+                throw new Exception("Error: No se puede llamar a un valor que no es una función.");
+            }
+        }
+
+
+        return callee;
+    }
+
+    // VisitAtioCall
+    public override ValueWrapper VisitAtoiCall(LanguageParser.AtoiCallContext context)
+    {
+        var atoiFunc = currentEnvironment.GetVariable("strconv.Atoi", context.Start.Line, context.Start.Column);
+        if (atoiFunc is FunctionValue functionValue)
+        {
+            return VisitCall(functionValue.invocable, context.call().exprList());
+        }
+        throw new Exception("Error: strconv.Atoi no está definida");
+    }
+
+    // VisitParseFloatCall
+    public override ValueWrapper VisitParseFloatCall(LanguageParser.ParseFloatCallContext context)
+    {
+        var parseFloatFunc = currentEnvironment.GetVariable("strconv.ParseFloat", context.Start.Line, context.Start.Column);
+        if (parseFloatFunc is FunctionValue functionValue)
+        {
+            return VisitCall(functionValue.invocable, context.call().exprList());
+        }
+        throw new Exception("Error: strconv.ParseFloat no está definida");
+    }
+
+    // VisitCall
+    public ValueWrapper VisitCall(Invocable invocable, LanguageParser.ExprListContext context)
+    {
+        List<ValueWrapper> arguments = new List<ValueWrapper>();
+
+        if (context != null)
+        {
+            foreach (var expr in context.expr())
+            {
+                arguments.Add(Visit(expr));
+            }
+        }
+
+        if (context != null && arguments.Count != invocable.Arity())
+        {
+            throw new Exception($"Error: Se esperaban {invocable.Arity()} argumentos, pero se recibieron {arguments.Count}");
+        }
+
+        return invocable.Invoke(arguments, this);
     }
 
 }
