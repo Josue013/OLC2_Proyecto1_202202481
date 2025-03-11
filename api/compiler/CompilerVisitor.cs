@@ -960,6 +960,71 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         }
     }
 
+    // VisitForRangeStmt
+    public override ValueWrapper VisitForRangeStmt(LanguageParser.ForRangeStmtContext context)
+    {
+        try
+        {
+            Environment previousEnvironment = currentEnvironment;
+            currentEnvironment = new Environment(currentEnvironment);
+
+            string indexID = context.ID(0).GetText();  // índice
+            string valueID = context.ID(1).GetText();  // valor
+            ValueWrapper sliceValue = Visit(context.expr());
+
+            // Verificar que sea un slice
+            if (sliceValue is not SliceValue slice)
+            {
+                throw new Exception("Error: La expresión del for range debe ser un slice");
+            }
+
+            try
+            {
+                // Recorrer el slice
+                for (int i = 0; i < slice.Values.Count; i++)
+                {
+                    // Declarar o actualizar índice
+                    if (!currentEnvironment.variables.ContainsKey(indexID))
+                    {
+                        currentEnvironment.DeclareVariable(indexID, new IntValue(i), context.Start.Line, context.Start.Column);
+                    }
+                    else
+                    {
+                        currentEnvironment.AssignVariable(indexID, new IntValue(i), context.Start.Line, context.Start.Column);
+                    }
+
+                    // Declarar o actualizar valor
+                    if (!currentEnvironment.variables.ContainsKey(valueID))
+                    {
+                        currentEnvironment.DeclareVariable(valueID, slice.Values[i], context.Start.Line, context.Start.Column);
+                    }
+                    else
+                    {
+                        currentEnvironment.AssignVariable(valueID, slice.Values[i], context.Start.Line, context.Start.Column);
+                    }
+
+                    Visit(context.stmt());
+                }
+            }
+            catch (BreakException)
+            {
+                // salir del ciclo
+            }
+            catch (ContinueException)
+            {
+                // Continuar con la siguiente iteración
+            }
+
+            currentEnvironment = previousEnvironment;
+            return defaultValue;
+        }
+        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException))
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
 
     /* ***** Slices ***** */
 
@@ -1081,8 +1146,140 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         }
     }
 
+    // VisitSlice4Stmt - Declaración de slice multidimensional con valores
+    public override ValueWrapper VisitSlice4Stmt(LanguageParser.Slice4StmtContext context)
+    {
+        try
+        {
+            string id = context.ID().GetText();
+            string type = context.type().GetText();
+            var outerSlice = new SliceValue($"[]{type}");
+
+            // Procesar cada arrayContent que representa una fila
+            foreach (var arrayContent in context.arrayContent())
+            {
+                var rowValues = new List<ValueWrapper>();
+                foreach (var expr in arrayContent.exprList().expr())
+                {
+                    var value = Visit(expr);
+                    if (!IsCompatibleType(value, type))
+                    {
+                        throw new Exception($"Error: El valor {value} no es compatible con el tipo {type}");
+                    }
+                    rowValues.Add(value);
+                }
+                outerSlice.Values.Add(new SliceValue(type, rowValues));
+            }
+
+            currentEnvironment.DeclareVariable(id, outerSlice, context.Start.Line, context.Start.Column);
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitSlice5Stmt - Asignación de valores en slice multidimensional
+    public override ValueWrapper VisitSlice5Stmt(LanguageParser.Slice5StmtContext context)
+    {
+        try
+        {
+            string id = context.ID().GetText();
+            ValueWrapper row = Visit(context.expr(0));
+            ValueWrapper col = Visit(context.expr(1));
+            ValueWrapper value = Visit(context.expr(2));
+
+            if (row is not IntValue || col is not IntValue)
+            {
+                throw new Exception("Error: Los índices deben ser enteros");
+            }
+
+            var matrix = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
+            if (matrix is not SliceValue outerSlice)
+            {
+                throw new Exception($"Error: {id} no es un slice multidimensional");
+            }
+
+            int rowIndex = ((IntValue)row).Value;
+            int colIndex = ((IntValue)col).Value;
+
+            if (rowIndex < 0 || rowIndex >= outerSlice.Values.Count)
+            {
+                throw new Exception($"Error: Índice de fila {rowIndex} fuera de rango");
+            }
+
+            var innerSlice = outerSlice.Values[rowIndex] as SliceValue;
+            if (colIndex < 0 || colIndex >= innerSlice.Values.Count)
+            {
+                throw new Exception($"Error: Índice de columna {colIndex} fuera de rango");
+            }
+
+            if (!IsCompatibleType(value, innerSlice.Type))
+            {
+                throw new Exception($"Error: No se puede asignar un valor de tipo {value.GetType()} a un slice de tipo {innerSlice.Type}");
+            }
+
+            // Actualizar el valor
+            var newInnerSlice = innerSlice.SetValue(colIndex, value);
+            var newOuterSlice = outerSlice.SetValue(rowIndex, newInnerSlice);
+            currentEnvironment.AssignVariable(id, newOuterSlice, context.Start.Line, context.Start.Column);
+
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitSlice7Stmt - Acceso a slice multidimensional
+    public override ValueWrapper VisitSlice7Stmt(LanguageParser.Slice7StmtContext context)
+    {
+        try
+        {
+            string id = context.ID().GetText();
+            ValueWrapper row = Visit(context.expr(0));
+            ValueWrapper col = Visit(context.expr(1));
+
+            if (row is not IntValue || col is not IntValue)
+            {
+                throw new Exception("Error: Los índices deben ser enteros");
+            }
+
+            var matrix = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
+            if (matrix is not SliceValue outerSlice)
+            {
+                throw new Exception($"Error: {id} no es un slice multidimensional");
+            }
+
+            int rowIndex = ((IntValue)row).Value;
+            int colIndex = ((IntValue)col).Value;
+
+            if (rowIndex < 0 || rowIndex >= outerSlice.Values.Count)
+            {
+                throw new Exception($"Error: Índice de fila {rowIndex} fuera de rango");
+            }
+
+            var innerSlice = outerSlice.Values[rowIndex] as SliceValue;
+            if (colIndex < 0 || colIndex >= innerSlice.Values.Count)
+            {
+                throw new Exception($"Error: Índice de columna {colIndex} fuera de rango");
+            }
+
+            return innerSlice.Values[colIndex];
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
     // Método auxiliar para verificar compatibilidad de tipos
-    private bool IsCompatibleType(ValueWrapper value, string type)
+    public bool IsCompatibleType(ValueWrapper value, string type)
     {
         return (type, value) switch
         {
@@ -1166,6 +1363,105 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             return VisitCall(functionValue.invocable, context.call().exprList());
         }
         throw new Exception("Error: strconv.ParseFloat no está definida");
+    }
+
+    // VisitTypeOfCall
+    public override ValueWrapper VisitTypeOfCall(LanguageParser.TypeOfCallContext context)
+    {
+        try
+        {
+            // Obtener la función TypeOf
+            var typeOfFunc = currentEnvironment.GetVariable("reflect.TypeOf", context.Start.Line, context.Start.Column);
+            if (typeOfFunc is FunctionValue functionValue)
+            {
+                return VisitCall(functionValue.invocable, context.call().exprList());
+            }
+            throw new Exception("Error: reflect.TypeOf no está definida");
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitIndexCall
+    public override ValueWrapper VisitIndexCall(LanguageParser.IndexCallContext context)
+    {
+        try
+        {
+            // Obtener la función slices.Index
+            var indexFunc = currentEnvironment.GetVariable("slices.Index", context.Start.Line, context.Start.Column);
+
+
+            if (indexFunc is FunctionValue functionValue)
+            {
+                return VisitCall(functionValue.invocable, context.call().exprList());
+            }
+            throw new Exception("Error: slices.Index no está definida");
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitJoinCall
+    public override ValueWrapper VisitJoinCall(LanguageParser.JoinCallContext context)
+    {
+        try
+        {
+            var joinFunc = currentEnvironment.GetVariable("strings.Join", context.Start.Line, context.Start.Column);
+            if (joinFunc is FunctionValue functionValue)
+            {
+                return VisitCall(functionValue.invocable, context.call().exprList());
+            }
+            throw new Exception("Error: strings.Join no está definida");
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitLenCall
+    public override ValueWrapper VisitLenCall(LanguageParser.LenCallContext context)
+    {
+        try
+        {
+            var lenFunc = currentEnvironment.GetVariable("len", context.Start.Line, context.Start.Column);
+            if (lenFunc is FunctionValue functionValue)
+            {
+                return VisitCall(functionValue.invocable, context.call().exprList());
+            }
+            throw new Exception("Error: len no está definida");
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitAppendCall
+    public override ValueWrapper VisitAppendCall(LanguageParser.AppendCallContext context)
+    {
+        try
+        {
+            var appendFunc = currentEnvironment.GetVariable("append", context.Start.Line, context.Start.Column);
+            if (appendFunc is FunctionValue functionValue)
+            {
+                return VisitCall(functionValue.invocable, context.call().exprList());
+            }
+            throw new Exception("Error: append no está definida");
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
     }
 
     // VisitCall

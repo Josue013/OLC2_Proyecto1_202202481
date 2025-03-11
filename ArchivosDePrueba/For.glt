@@ -12,3 +12,7 @@ for i := 1; i <= 5; i++ {
 }
 
 fmt.Println("ForRange")
+numeros := []int{10, 20, 30, 40, 50}
+for índice, valor := range numeros {
+fmt.Println("índice:", índice, "valor:", valor)
+}

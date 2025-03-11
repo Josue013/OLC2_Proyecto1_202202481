@@ -20,7 +20,7 @@ stmt:
 	// Loops
 	| 'for' expr stmt 									# ForWhileStmt
 	| 'for' forInit ';' expr ';' expr stmt # ForClassicStmt
-	| 'for' ID 'range' expr stmt 				# ForRangeStmt
+	| 'for' ID ',' ID ':=' 'range' expr stmt # ForRangeStmt
 	// inc/dec
 	//| ID op= ('++' | '--')							# IncDecStmt
 	| incdec													# IncDecStmt
@@ -49,12 +49,13 @@ slice1:
 ;
 
 slice2:
-	// Definicion y asignacion de valores
-	ID ':=' '[][]' type '{' exprList '}' (',' '{' exprList '}')* # Slice4Stmt
-	// Asignacion de valores
-	| ID '[' expr ']' '[' expr ']' '=' expr # Slice5Stmt
-	
+    // Definicion y asignacion de valores
+    ID ':=' '[][]' type '{' arrayContent ',' ( arrayContent ',')*  '}' # Slice4Stmt
+    // Asignacion de valores
+    | ID '[' expr ']' '[' expr ']' '=' expr # Slice5Stmt
 ;
+
+arrayContent: '{' exprList '}';
 
 type: 'int' 
 	| 'float64' 
@@ -70,9 +71,15 @@ exprList:
 expr:
 
 	'(' expr ')' # Parens
-	// Llamada a funcion
+	// Funciones embebidas
 	| 'strconv.Atoi' call         # AtoiCall
 	| 'strconv.ParseFloat' call       # ParseFloatCall
+	| 'reflect.TypeOf' call # TypeOfCall
+	| 'slices.Index' call # IndexCall
+	| 'strings.Join' call # JoinCall
+	| 'len' call # LenCall
+	| 'append' call # AppendCall
+	// Llamada a funcion
 	| expr call+ 									# CallExpr
 	// Arithmetic operations
 	| '-' expr										# Negate
@@ -93,6 +100,9 @@ expr:
 	| expr op = '==' expr	# Comparison
 	| expr op = '!=' expr	# Comparison
 
+	// Logical operations
+	| expr op = ('&&' | '||') expr	# Logical
+
 	// Assignment operations
 	| ID op=('=' | ':=') expr # Assign
 
@@ -102,8 +112,6 @@ expr:
 	// Acceso matriz
 	| ID '[' expr ']' '[' expr ']' # Slice7Stmt
 
-	// Logical operations
-	| expr op = ('&&' | '||') expr	# Logical
 	
 	// Primitive data types
 	| INT			# Int

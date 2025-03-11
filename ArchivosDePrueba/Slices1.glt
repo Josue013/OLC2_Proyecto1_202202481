@@ -9,3 +9,23 @@ fmt.Println(slice)
 fmt.Println(numbers)
 fmt.Println(numbers[0], numbers[1], numbers[2], numbers[3], numbers[4])
 
+// Recorriendo slice de una dimensión
+numeros := []int{1, 2, 3, 4, 5}
+fmt.Println("Recorriendo slice de una dimensión:")
+for i := 0; i < len(numeros); i++ {
+    fmt.Println("numeros[", i, "] =", numeros[i])
+}
+
+// Recorriendo slice de dos dimensiones
+matriz := [][]int{
+    {1, 2, 3},
+    {4, 5, 6},
+    {7, 8, 9},
+}
+
+fmt.Println("\nRecorriendo slice de dos dimensiones:")
+for i := 0; i < len(matriz); i++ {
+    for j := 0; j < len(matriz[i]); j++ {
+        fmt.Println("matriz[", i, "][", j, "] =", matriz[i][j])
+    }
+}

@@ -6,3 +6,42 @@ fmt.Println("Número:", numero) // Salida: Número: 123
 fmt.Println("****** strconv.ParseFloat *******")
 numero1 := strconv.ParseFloat("123.45")
 fmt.Println("Número:", numero1) // Salida: Número: 123.45
+
+fmt.Println("****** reflect.TypeOf() *******")
+// Tipo int
+numero2 := 42
+tipoNumero := reflect.TypeOf(numero2)
+fmt.Println("Tipo de numero2:", tipoNumero) // Salida: int
+// Tipo float
+decimal := 3.1416
+tipoDecimal := reflect.TypeOf(decimal)
+fmt.Println("Tipo de decimal:", tipoDecimal) // Salida: float64
+// Tipo struct
+p := Persona{Nombre: "Alice", Edad: 25}
+tipoStruct := reflect.TypeOf(p)
+fmt.Println("Tipo de p:", tipoStruct) // Salida: Persona
+// Tipo slice
+slice := []int{1, 2, 3}
+tipoSlice := reflect.TypeOf(slice)
+fmt.Println("Tipo de slice:", tipoSlice) // Salida: []int
+
+fmt.Println("****** slices.Index *******")
+numeros := []int{10, 20, 30, 40, 50}
+// Usar slices.Index para buscar valores
+fmt.Println(slices.Index(numeros, 30))
+// Salida: 2
+fmt.Println(slices.Index(numeros, 100)) // Salida: -1
+
+fmt.Println("****** strings.Join *******")
+palabras := []string{"hola", "mundo", "go"}
+fmt.Println(strings.Join(palabras, " ")) // Salida: "hola mundo go"
+
+fmt.Println("****** len *******")
+numeros2 := []int{1, 2, 3, 4, 5}
+fmt.Println(len(numeros2)) // Salida: 5
+
+fmt.Println("****** append *******")
+numeros3 := []int{1, 2, 3}
+// Agregar un elemento
+numeros3 = append(numeros3, 4)
+fmt.Println(numeros3) // Salida: [1 2 3 4]
