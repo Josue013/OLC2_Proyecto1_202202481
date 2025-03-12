@@ -21,7 +21,7 @@ namespace api.Controllers
         {
             try
             {
-                string imageFile = "Reportes/ReporteAST.png";
+                string imageFile = "Reportes/ReporteAST.svg";
 
                 if (!System.IO.File.Exists(imageFile))
                 {
@@ -32,7 +32,7 @@ namespace api.Controllers
                 var imageBytes = System.IO.File.ReadAllBytes(imageFile);
                 
                 // Devolver la imagen
-                return File(imageBytes, "image/png");
+                return File(imageBytes, "image/svg+xml");
             }
             catch (Exception ex)
             {

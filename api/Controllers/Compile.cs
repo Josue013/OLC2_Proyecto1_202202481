@@ -63,7 +63,7 @@ namespace api.Controllers
 
             // Preparar archivos
             string dotFile = "Reportes/ReporteAST.dot";
-            string imageFile = "Reportes/ReporteAST.png";
+            string imageFile = "Reportes/ReporteAST.svg";
             string errorFile = "Reportes/ReporteErrores.html";
 
             // Inicializar generador de reportes

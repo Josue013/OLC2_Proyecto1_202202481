@@ -39,11 +39,29 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     // VisitProgram
     public override ValueWrapper VisitProgram(LanguageParser.ProgramContext context)
     {
+        // Primera pasada: procesar solo declaraciones
         foreach (var dcl in context.dcl())
         {
-            Visit(dcl);
+            if (dcl.funcDCl() != null || dcl.varDcl() != null)
+            {
+                Visit(dcl);
+            }
         }
-        return defaultValue;
+
+        // Buscar la función main
+        var mainFunc = currentEnvironment.GetVariable("main", 0, 0);
+        if (mainFunc is FunctionValue functionValue)
+        {
+            if (functionValue.invocable.Arity() > 0)
+            {
+                throw new Exception("Error: La función main no debe tener parámetros");
+            }
+            return functionValue.invocable.Invoke(new List<ValueWrapper>(), this);
+        }
+        else
+        {
+            throw new Exception("Error: No se encontró la función main");
+        }
     }
 
     // VisitVarDcl
@@ -719,7 +737,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                 Visit(context.stmt(1));
             }
         }
-        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException))
+        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException || ex is ReturnException))
         {
             System.Console.WriteLine(ex.Message);
             errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
@@ -800,7 +818,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                 }
             }
         }
-        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException))
+        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException || ex is ReturnException))
         {
             System.Console.WriteLine(ex.Message);
             errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
@@ -894,7 +912,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             }
             return defaultValue;
         }
-        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException))
+        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException) || ex is ReturnException)
         {
             System.Console.WriteLine(ex.Message);
             errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
@@ -1018,7 +1036,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             currentEnvironment = previousEnvironment;
             return defaultValue;
         }
-        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException))
+        catch (Exception ex) when (!(ex is BreakException || ex is ContinueException) || ex is ReturnException)
         {
             errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
             return defaultValue;
@@ -1483,6 +1501,18 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         }
 
         return invocable.Invoke(arguments, this);
+    }
+
+    // ******** Funciones ********
+
+    // VisitFuncDCl
+    public override ValueWrapper VisitFuncDCl(LanguageParser.FuncDClContext context)
+    {
+
+        var foreign = new ForeignFunction(currentEnvironment, context);
+        currentEnvironment.DeclareVariable(context.ID().GetText(), new FunctionValue(foreign, context.ID().GetText()), context.Start.Line, context.Start.Column);
+
+        return defaultValue;
     }
 
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 
 namespace api.compiler
 {
@@ -20,9 +21,51 @@ namespace api.compiler
         }
 
         public override string ToString()
+{
+    var result = new StringBuilder("[");
+    
+    for (int i = 0; i < Values.Count; i++)
+    {
+        if (Values[i] is SliceValue innerSlice)
         {
-            return $"[{string.Join(", ", Values)}]";
+            // Para slices anidados
+            result.Append(innerSlice.ToString());
         }
+        else
+        {
+            // Para slices simples
+            switch (Values[i])
+            {
+                case IntValue intVal:
+                    result.Append(intVal.Value);
+                    break;
+                case DecimalValue decVal:
+                    result.Append(decVal.Value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
+                    break;
+                case StringValue strVal:
+                    result.Append(strVal.Value);
+                    break;
+                case BoolValue boolVal:
+                    result.Append(boolVal.Value.ToString().ToLower());
+                    break;
+                case RuneValue runeVal:
+                    result.Append(runeVal.Value);
+                    break;
+                default:
+                    result.Append(Values[i]);
+                    break;
+            }
+        }
+
+        if (i < Values.Count - 1)
+        {
+            result.Append(" ");
+        }
+    }
+    
+    result.Append("]");
+    return result.ToString();
+}
 
         // Para mantener la inmutabilidad del record, creamos un método para agregar valores
         public SliceValue AddValue(ValueWrapper value)

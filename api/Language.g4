@@ -6,9 +6,13 @@ options { caseInsensitive = false; }
 
 program: dcl*;
 
-dcl: varDcl | stmt (';')?;
+dcl: varDcl | funcDCl | stmt (';')?;
 
 varDcl: 'var' ID type ('=' expr)?;
+
+funcDCl: 'func' ID '(' params? ')' type? '{' dcl* '}' ;
+
+params: ID type (',' ID type)*;
 
 stmt:
 	expr 														# ExprStmt

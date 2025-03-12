@@ -44,8 +44,9 @@ namespace api.compiler
             else if (tree is ITerminalNode terminal)
             {
                 string text = terminal.GetText();
-                // Escapar caracteres especiales
-                text = text.Replace("\"", "\\\"")
+                // Escapar caracteres especiales para DOT
+                text = text.Replace("\\", "\\\\")  // Primero escapar los backslashes
+                          .Replace("\"", "\\\"")
                           .Replace("\n", "\\n")
                           .Replace("\r", "\\r")
                           .Replace("\t", "\\t");
@@ -66,7 +67,7 @@ namespace api.compiler
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "dot",
-                    Arguments = $"-Tpng {dotFile} -o {outputImage}",
+                    Arguments = $"-Tsvg {dotFile} -o {outputImage}",
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
