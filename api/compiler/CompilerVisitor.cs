@@ -1,6 +1,7 @@
 
 using analyzer;
 using Antlr4.Runtime.Misc;
+using api.compiler;
 using System.Text;
 using SliceValue = api.compiler.SliceValue;
 
@@ -17,6 +18,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         FuncionesEmbebidas.Generar(currentEnvironment);
     }
     public List<Errores> errores = new List<Errores>();
+    public SymbolReportGenerator simbolos = new SymbolReportGenerator();
 
     // Funcion para obtener todos los errores
     public List<Errores> GetAllErrors()
@@ -69,6 +71,9 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     {
         string id = context.ID().GetText();
         string type = context.type().GetText();
+
+        // Añadir Variable a la tabla de Simbolos
+        simbolos.AddSymbol(new Symbol(id, "Variable", type, context.Start.Line, context.Start.Column));
 
         if (context.expr() == null)
         {
@@ -1055,6 +1060,8 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             string type = context.type().GetText();
             var values = new List<ValueWrapper>();
 
+            simbolos.AddSymbol(new Symbol(id,"Slice", type, context.Start.Line, context.Start.Column));
+
             // Recoger los valores iniciales
             foreach (var expr in context.exprList().expr())
             {
@@ -1086,6 +1093,9 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             string id = context.ID().GetText();
             string type = context.type().GetText();
             currentEnvironment.DeclareSlice(id, type);
+
+            simbolos.AddSymbol(new Symbol(id,"Slice", type, context.Start.Line, context.Start.Column));
+
             return defaultValue;
         }
         catch (Exception ex)
@@ -1172,6 +1182,8 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             string id = context.ID().GetText();
             string type = context.type().GetText();
             var outerSlice = new SliceValue($"[]{type}");
+
+            simbolos.AddSymbol(new Symbol(id,"Slice", type, context.Start.Line, context.Start.Column));
 
             // Procesar cada arrayContent que representa una fila
             foreach (var arrayContent in context.arrayContent())
@@ -1508,6 +1520,8 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     // VisitFuncDCl
     public override ValueWrapper VisitFuncDCl(LanguageParser.FuncDClContext context)
     {
+
+        simbolos.AddSymbol(new Symbol(context.ID().GetText(), "Funcion", context.type()?.GetText() ?? "void", context.Start.Line, context.Start.Column));
 
         var foreign = new ForeignFunction(currentEnvironment, context);
         currentEnvironment.DeclareVariable(context.ID().GetText(), new FunctionValue(foreign, context.ID().GetText()), context.Start.Line, context.Start.Column);

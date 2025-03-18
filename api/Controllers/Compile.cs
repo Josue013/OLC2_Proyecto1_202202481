@@ -65,6 +65,7 @@ namespace api.Controllers
             string dotFile = "Reportes/ReporteAST.dot";
             string imageFile = "Reportes/ReporteAST.svg";
             string errorFile = "Reportes/ReporteErrores.html";
+            string symbolFile = "Reportes/TablaSimbolos.html";
 
             // Inicializar generador de reportes
             var errorReportGenerator = new ErrorReportGenerator();
@@ -97,11 +98,15 @@ namespace api.Controllers
             // Generar reporte de errores
             errorReportGenerator.SaveToFile(errorFile);
 
+            // Generar reporte de simbolos
+            visitor.simbolos.SaveToFile(symbolFile);
+
             return Ok(new
             {
                 result = output,
                 ast = imageFile,
                 errorReport = errorFile,
+                symbolTable = symbolFile, 
                 hasErrors = errorListener.HasErrors() || visitor.errores.Count > 0,
                 errors = lexSynErrors.Concat(visitor.errores).ToList()
             });

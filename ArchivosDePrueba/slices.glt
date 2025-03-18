@@ -118,9 +118,9 @@ func main() {
 	puntosIndex := 0
 
 	fmt.Println("Búsqueda de elementos con slices.Index:")
-	numeros = []int{10, 20, 30, 40, 50}
-	indice1 := slices.Index(numeros, 30)
-	indice2 := slices.Index(numeros, 60) // No existe, debería retornar -1
+	numeros2 := []int{10, 20, 30, 40, 50}
+	indice1 := slices.Index(numeros2, 30)
+	indice2 := slices.Index(numeros2, 60) // No existe, debería retornar -1
 	fmt.Println("Índice de 30:", indice1)
 	fmt.Println("Índice de 60:", indice2)
 

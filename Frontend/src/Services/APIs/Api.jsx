@@ -37,3 +37,16 @@ export const openErrorReport = async () => {
     console.error('Error al abrir el reporte de errores:', error);
   }
 }
+
+// Funcion para abrir el reporte de simbolos
+export const openSymbolReport = async () => {
+  try {
+    const response = await api.get('/opensimbolos');
+    // crear un blob con el HTML
+    const blob = new Blob([response.data], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url);
+  } catch (error) {
+    console.error('Error al abrir el reporte de simbolos:', error);
+  }
+}

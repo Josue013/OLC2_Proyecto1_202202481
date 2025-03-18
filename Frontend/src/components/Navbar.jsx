@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import '../styles/Navbar.css';
 import { openAST } from '../Services/APIs/Api';
 import { openErrorReport } from '../Services/APIs/Api';
+import { openSymbolReport } from '../Services/APIs/Api';
 
 function Navbar({ runCode, cleanOutput, newFile, openFile, saveFile }) {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -35,6 +36,14 @@ function Navbar({ runCode, cleanOutput, newFile, openFile, saveFile }) {
     }
   }
 
+  const handleOpenSimbolos = async () => {
+    try {
+      await openSymbolReport();
+    } catch (error) {
+      console.error('Error al abrir el reporte de simbolos:', error);
+    }
+  }
+
   return (
     <nav className="navbar">
       <div className="navbar-left">
@@ -57,7 +66,7 @@ function Navbar({ runCode, cleanOutput, newFile, openFile, saveFile }) {
           <button className="dropbtn">Reportes</button>
           <div className="dropdown-content" style={{ display: showDropdown ? 'block' : 'none' }}>
             <a href="#" onClick={handleOpenErrors} >Reporte de Errores</a>
-            <a href="#">Reporte de Simbolos</a>
+            <a href="#" onClick={handleOpenSimbolos} >Reporte de Simbolos</a>
             <a href="#" onClick={handleOpenAST} >Reporte de Arbol</a>
           </div>
         </div>
