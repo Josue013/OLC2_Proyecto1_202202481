@@ -3,7 +3,7 @@ namespace api.compiler
   public class Symbol
   {
     public string Id { get; set; }
-    public string TipoSimbolo{ get; set; }  
+    public string TipoSimbolo { get; set; }
     public string TipoDato { get; set; }
     public int Linea { get; set; }
     public int Columna { get; set; }

@@ -10,6 +10,11 @@ public class Environment
     public Environment(Environment? parent)
     {
         this.parent = parent;
+
+        if (parent == null)
+        {
+            this.variables["nil"] = new NilValue();
+        }
     }
 
     // Función para obtener una variable

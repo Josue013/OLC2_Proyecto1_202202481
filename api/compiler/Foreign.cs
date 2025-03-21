@@ -4,53 +4,54 @@ public class ForeignFunction : Invocable
 {
     private Environment closure;
     private LanguageParser.FuncDClContext context;
-    private string returnType;
 
     public ForeignFunction(Environment closure, LanguageParser.FuncDClContext context)
     {
         this.closure = closure;
         this.context = context;
-        this.returnType = context.type()?.GetText(); // Puede ser null si no hay tipo de retorno
     }
 
     public int Arity()
     {
-        if (context.@params() == null)
-        {
-            return 0;
-        }
-        return context.@params().ID().Length;
+        // Para métodos de struct incluir el receptor en el conteo
+        int baseArity = context.@params()?.ID().Length ?? 0;
+        return context.ID().Length > 1 ? baseArity + 1 : baseArity;
     }
 
     public ValueWrapper Invoke(List<ValueWrapper> args, CompilerVisitor visitor)
     {
-        var newEnv = new Environment(closure);
-        var beforeCallEnv = visitor.currentEnvironment;
-        visitor.currentEnvironment = newEnv;
+        var env = new Environment(closure);
+        var previousEnv = visitor.currentEnvironment;
+        visitor.currentEnvironment = env;
 
         try
         {
-            // Validar parámetros
+            // Si es un método de struct
+            if (context.ID().Length > 1)
+            {
+                string receiverName = context.ID(0).GetText();
+                if (args.Count == 0)
+                {
+                    throw new Exception($"Error: Falta el receptor para el método {context.ID(2).GetText()}");
+                }
+                // Declarar el receptor en el entorno
+                env.DeclareVariable(receiverName, args[0], context.Start.Line, context.Start.Column);
+
+                // Remover el receptor de los argumentos
+                args = args.Skip(1).ToList();
+            }
+
+            // Procesar los parámetros normales
             if (context.@params() != null)
             {
                 for (int i = 0; i < context.@params().ID().Length; i++)
                 {
+                    if (i >= args.Count)
+                    {
+                        throw new Exception($"Error: Faltan argumentos para la función");
+                    }
                     string paramName = context.@params().ID(i).GetText();
-                    string paramType = context.@params().type(i).GetText();
-
-                    // Verificar que no haya parámetros duplicados
-                    if (newEnv.variables.ContainsKey(paramName))
-                    {
-                        throw new Exception($"Error: Parámetro duplicado '{paramName}'");
-                    }
-
-                    // Verificar que el tipo del argumento coincida
-                    if (!visitor.IsCompatibleType(args[i], paramType))
-                    {
-                        throw new Exception($"Error: El argumento {i+1} debe ser de tipo {paramType}");
-                    }
-
-                    newEnv.DeclareVariable(paramName, args[i], 0, 0);
+                    env.DeclareVariable(paramName, args[i], context.Start.Line, context.Start.Column);
                 }
             }
 
@@ -60,31 +61,18 @@ public class ForeignFunction : Invocable
                 visitor.Visit(stmt);
             }
 
-            visitor.currentEnvironment = beforeCallEnv;
+            visitor.currentEnvironment = previousEnv;
             return visitor.defaultValue;
         }
-        catch (ReturnException e)
+        catch (ReturnException ret)
         {
-            // Validar tipo de retorno
-            if (returnType != null)
-            {
-                if (!visitor.IsCompatibleType(e.Value, returnType))
-                {
-                    throw new Exception($"Error: La función debe retornar un valor de tipo {returnType}");
-                }
-            }
-            else if (e.Value != visitor.defaultValue)
-            {
-                throw new Exception("Error: La función no debe retornar un valor");
-            }
-
-            visitor.currentEnvironment = beforeCallEnv;
-            return e.Value;
+            visitor.currentEnvironment = previousEnv;
+            return ret.Value;
         }
         catch (Exception ex)
         {
-            visitor.currentEnvironment = beforeCallEnv;
-            throw ex;
+            visitor.currentEnvironment = previousEnv;
+            throw;
         }
     }
 }

@@ -6,11 +6,17 @@ options { caseInsensitive = false; }
 
 program: dcl*;
 
-dcl: varDcl | funcDCl | stmt (';')?;
+dcl: varDcl | funcDCl | structDcl |stmt (';')?;
 
 varDcl: 'var' ID type ('=' expr)?;
 
-funcDCl: 'func' ID '(' params? ')' type? '{' dcl* '}' ;
+funcDCl: 'func' ('(' ID ID ')')? ID '(' params? ')' type? '{' dcl* '}' ;
+
+structDcl: 'type' ID 'struct' '{' structBody* '}' ;
+
+structBody: varDCLstruct ';'? ;
+
+varDCLstruct: ID (type | ID);
 
 params: ID type (',' ID type)*;
 
@@ -76,13 +82,13 @@ expr:
 
 	'(' expr ')' # Parens
 	// Funciones embebidas
-	| 'strconv.Atoi' call         # AtoiCall
-	| 'strconv.ParseFloat' call       # ParseFloatCall
-	| 'reflect.TypeOf' call # TypeOfCall
-	| 'slices.Index' call # IndexCall
-	| 'strings.Join' call # JoinCall
-	| 'len' call # LenCall
-	| 'append' call # AppendCall
+	| 'strconv.Atoi' callEmbebida         # AtoiCall
+	| 'strconv.ParseFloat' callEmbebida       # ParseFloatCall
+	| 'reflect.TypeOf' callEmbebida # TypeOfCall
+	| 'slices.Index' callEmbebida # IndexCall
+	| 'strings.Join' callEmbebida # JoinCall
+	| 'len' callEmbebida # LenCall
+	| 'append' callEmbebida # AppendCall
 	// Llamada a funcion
 	| expr call+ 									# CallExpr
 	// Arithmetic operations
@@ -108,7 +114,7 @@ expr:
 	| expr op = ('&&' | '||') expr	# Logical
 
 	// Assignment operations
-	| ID op=('=' | ':=') expr # Assign
+	| expr op=('=' | ':=') expr # Assign
 
 	// Acceso vector
 	| ID '[' expr ']' # Slice6Stmt
@@ -123,17 +129,26 @@ expr:
 	| RUNE		# Rune
 	| STRING	# String
 	| BOOL		# Bool
+	| NIL			# Nil
 	| ID			# Identifier
 	| incdec		# IncDecExpr
+
+	// instantiation of a struct
+	| ID '{' ID ':' expr ',' ( ID ':' expr ',')* '}' # StructInst
 	;
 
-call: '(' exprList? ')';
+callEmbebida: '(' exprList? ')' ;
+
+call: '(' exprList? ')' #FuncCall
+		| '.' ID #Get
+; 
 
 INT: [0-9]+;
 DECIMAL: [0-9]+ ('.' [0-9]+);
 RUNE: '\'' (ESC_SEQ | ~['\\]) '\'';
 STRING: '"' (ESC_SEQ | ~["\\])* '"';
 BOOL: 'true' | 'false';
+NIL: 'nil';
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
 
 // Skip

@@ -1,0 +1,36 @@
+// Declaración de struct simple
+type Persona struct {
+    Nombre string
+    Edad int
+}
+
+// Método para el struct Persona
+func (p Persona) Saludar() {
+    fmt.Println("Hola, mi nombre es", p.Nombre)
+}
+
+func main() {
+    // Crear instancia de Persona
+    p := Persona{
+        Nombre: "Juan",
+        Edad: 25,
+    }
+
+    // Imprimir valores iniciales
+    fmt.Println("=== Valores iniciales ===")
+    fmt.Println("Nombre:", p.Nombre)
+    fmt.Println("Edad:", p.Edad)
+
+    // Modificar valores
+    fmt.Println("\n=== Modificando valores ===")
+    p.Nombre = "María"
+    p.Edad = 30
+
+    // Imprimir valores modificados
+    fmt.Println("Nuevo nombre:", p.Nombre)
+    fmt.Println("Nueva edad:", p.Edad)
+
+    // Llamar al método
+    fmt.Println("\n=== Llamando método ===")
+    p.Saludar()
+}

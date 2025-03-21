@@ -44,7 +44,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         // Primera pasada: procesar solo declaraciones
         foreach (var dcl in context.dcl())
         {
-            if (dcl.funcDCl() != null || dcl.varDcl() != null)
+            if (dcl.funcDCl() != null || dcl.varDcl() != null || dcl.structDcl() != null)
             {
                 Visit(dcl);
             }
@@ -108,49 +108,182 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     // VisitAssign
     public override ValueWrapper VisitAssign(LanguageParser.AssignContext context)
     {
-        string id = context.ID().GetText();
-        string signo = context.GetChild(1).GetText();
-        ValueWrapper value = Visit(context.expr());
+        var asignee = context.expr(0);
+        ValueWrapper value = Visit(context.expr(1));
 
         try
         {
-            if (signo == ":=")
+
+            if (asignee is LanguageParser.IdentifierContext idContext)
             {
-                if (currentEnvironment.variables.ContainsKey(id))
-                {
-                    throw new Exception("Error: La variable " + id + " ya ha sido declarada.");
-                }
+                // Manejo de asignación de variables simples
+                string id = idContext.ID().GetText();
+                string signo = context.GetChild(1).GetText();
 
-                currentEnvironment.DeclareVariable(id, value, context.Start.Line, context.Start.Column);
-                Console.WriteLine("Nombre de la variable: " + id + " valor: " + value);
-            }
-            else if (signo == "=")
-            {
-                if (!currentEnvironment.variables.ContainsKey(id) && currentEnvironment.parent == null)
+                if (signo == ":=")
                 {
-                    throw new Exception("Error: La variable " + id + " no ha sido declarada.");
+                    if (currentEnvironment.variables.ContainsKey(id))
+                    {
+                        throw new Exception("Error: La variable " + id + " ya ha sido declarada.");
+                    }
+                    currentEnvironment.DeclareVariable(id, value, context.Start.Line, context.Start.Column);
                 }
-
-                var valorAntiguo = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
-
-                // Verificar si los tipos coinciden o si es una conversión implícita de int a float64
-                if (valorAntiguo.GetType() != value.GetType() && !(valorAntiguo is DecimalValue && value is IntValue))
+                else if (signo == "=")
                 {
-                    throw new Exception("Error: El tipo de dato de la variable " + id + " no coincide.");
-                    //errores.Add(new Errores("Error", "El tipo de dato de la variable " + id + " no coincide.", context.Start.Line, context.Start.Column));
-                }
-                else
-                {
-                    // Realizar la conversión implícita de int a float64 si es necesario
+                    if (!currentEnvironment.variables.ContainsKey(id) && currentEnvironment.parent == null)
+                    {
+                        throw new Exception("Error: La variable " + id + " no ha sido declarada.");
+                    }
+                    var valorAntiguo = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
+                    if (valorAntiguo.GetType() != value.GetType() && !(valorAntiguo is DecimalValue && value is IntValue))
+                    {
+                        throw new Exception("Error: El tipo de dato de la variable " + id + " no coincide.");
+                    }
                     if (valorAntiguo is DecimalValue && value is IntValue)
                     {
                         value = new DecimalValue(((IntValue)value).Value);
                     }
-
-                    Console.WriteLine("La variable " + id + " cambio de valor de " + valorAntiguo + " a " + value);
                     currentEnvironment.AssignVariable(id, value, context.Start.Line, context.Start.Column);
                 }
             }
+            else if (asignee is LanguageParser.Slice6StmtContext sliceContext)
+            {
+                // Manejo de asignación de elementos de slice
+                string id = sliceContext.ID().GetText();
+                ValueWrapper indexValue = Visit(sliceContext.expr());
+
+                if (indexValue is not IntValue intIndex)
+                {
+                    throw new Exception("Error: El índice debe ser un entero");
+                }
+
+                var sliceValue = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
+                if (sliceValue is not SliceValue slice)
+                {
+                    throw new Exception("Error: La variable no es un slice");
+                }
+
+                int index = intIndex.Value;
+                if (index < 0 || index >= slice.Values.Count)
+                {
+                    throw new Exception($"Error: Índice {index} fuera de rango");
+                }
+
+                if (!IsCompatibleType(value, slice.Type))
+                {
+                    throw new Exception($"Error: Tipo incompatible para el slice de tipo {slice.Type}");
+                }
+
+                currentEnvironment.AssignVariable(id, slice.SetValue(index, value), context.Start.Line, context.Start.Column);
+            }
+            else if (asignee is LanguageParser.Slice7StmtContext matrixContext)
+            {
+                // Manejo de asignación de elementos de matriz
+                string id = matrixContext.ID().GetText();
+                ValueWrapper rowIndex = Visit(matrixContext.expr(0));
+                ValueWrapper colIndex = Visit(matrixContext.expr(1));
+
+                if (rowIndex is not IntValue row || colIndex is not IntValue col)
+                {
+                    throw new Exception("Error: Los índices deben ser enteros");
+                }
+
+                var matrixValue = currentEnvironment.GetVariable(id, context.Start.Line, context.Start.Column);
+                if (matrixValue is not SliceValue outerSlice)
+                {
+                    throw new Exception("Error: La variable no es una matriz");
+                }
+
+                int i = row.Value;
+                if (i < 0 || i >= outerSlice.Values.Count)
+                {
+                    throw new Exception($"Error: Índice de fila {i} fuera de rango");
+                }
+
+                if (outerSlice.Values[i] is not SliceValue innerSlice)
+                {
+                    throw new Exception("Error: Estructura de matriz inválida");
+                }
+
+                int j = col.Value;
+                if (j < 0 || j >= innerSlice.Values.Count)
+                {
+                    throw new Exception($"Error: Índice de columna {j} fuera de rango");
+                }
+
+                if (!IsCompatibleType(value, innerSlice.Type))
+                {
+                    throw new Exception($"Error: Tipo incompatible para la matriz de tipo {innerSlice.Type}");
+                }
+
+                // Actualizar el valor en la matriz
+                var newInnerSlice = innerSlice.SetValue(j, value);
+                var newOuterSlice = outerSlice.SetValue(i, newInnerSlice);
+                currentEnvironment.AssignVariable(id, newOuterSlice, context.Start.Line, context.Start.Column);
+            }
+
+            else if (asignee is LanguageParser.CallExprContext callContext)
+            {
+                ValueWrapper callee = Visit(callContext.expr());
+
+                for (int i = 0; i < callContext.call().Length; i++)
+                {
+                    var action = callContext.call(i);
+
+                    // Si es el último call y es una asignación
+                    if (i == callContext.call().Length - 1)
+                    {
+                        if (action is LanguageParser.GetContext propertyAccess)
+                        {
+                            if (callee is StructValue structValue)
+                            {
+                                var property = propertyAccess.ID().GetText();
+                                structValue.Set(property, value);
+                            }
+                            else
+                            {
+                                throw new Exception("Error: No se puede acceder a una propiedad de un no-struct");
+                            }
+                        }
+                        else
+                        {
+                            throw new Exception("Error: Asignación inválida");
+                        }
+                    }
+
+                    // Manejo de llamadas a métodos y acceso a campos
+                    if (action is LanguageParser.FuncCallContext funcall)
+                    {
+                        if (callee is FunctionValue functionValue)
+                        {
+                            callee = VisitCall(functionValue.invocable, funcall.exprList());
+                        }
+                        else
+                        {
+                            throw new Exception("Error: No se puede llamar a un valor que no es una función");
+                        }
+                    }
+                    else if (action is LanguageParser.GetContext propertyAccess)
+                    {
+                        if (callee is StructValue structValue)
+                        {
+                            callee = structValue.Get(propertyAccess.ID().GetText());
+                        }
+                        else
+                        {
+                            throw new Exception("Error: No se puede acceder a una propiedad de un no-struct");
+                        }
+                    }
+                }
+
+                return callee;
+            }
+            else
+            {
+                throw new Exception("Error: Asignación inválida.");
+            }
+
+            return defaultValue;
         }
         catch (Exception ex)
         {
@@ -233,6 +366,14 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                             OutputTemporal.Append($"<fn {f.Name}>");
                             flag = true;
                             break;
+                        case StructValue s:
+                            OutputTemporal.Append(s.ToString());
+                            flag = true;
+                            break;
+                        case NilValue:
+                            OutputTemporal.Append("nil");
+                            flag = true;
+                            break;
                         case VoidValue:
                             // No hacer nada para VoidValue
                             break;
@@ -312,6 +453,12 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     public override ValueWrapper VisitBool(LanguageParser.BoolContext context)
     {
         return new BoolValue(bool.Parse(context.BOOL().GetText()));
+    }
+
+    // VisitNill
+    public override ValueWrapper VisitNil(LanguageParser.NilContext context)
+    {
+        return new NilValue();
     }
 
     // VisitString
@@ -619,6 +766,31 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         {
             return (left, right, operador) switch
             {
+
+                // ******** nil ********
+                // nil == nil
+                (NilValue _, NilValue _, "==") => new BoolValue(true),
+                // nil != nil
+                (NilValue _, NilValue _, "!=") => new BoolValue(false),
+                // struct == nil
+                (StructValue _, NilValue _, "==") => new BoolValue(false),
+                // nil == struct
+                (NilValue _, StructValue _, "==") => new BoolValue(false),
+                // struct != nil
+                (StructValue _, NilValue _, "!=") => new BoolValue(true),
+                // nil != struct
+                (NilValue _, StructValue _, "!=") => new BoolValue(true),
+                // NilValue == IntValue
+                (NilValue _, IntValue _, "==") => new BoolValue(false),
+                // NilValue == DecimalValue
+                (NilValue _, DecimalValue _, "==") => new BoolValue(false),
+                // NilValue == BoolValue
+                (NilValue _, BoolValue _, "==") => new BoolValue(false),
+                // NilValue == StringValue
+                (NilValue _, StringValue _, "==") => new BoolValue(false),
+                // NilValue == RuneValue
+                (NilValue _, RuneValue _, "==") => new BoolValue(false),
+
                 // ******** int ********
                 // IntValue == IntValue
                 (IntValue l, IntValue r, "==") => new BoolValue(l.Value == r.Value),
@@ -628,6 +800,8 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                 (IntValue l, DecimalValue r, "==") => new BoolValue(l.Value == r.Value),
                 // IntValue != DecimalValue
                 (IntValue l, DecimalValue r, "!=") => new BoolValue(l.Value != r.Value),
+                // IntValue == NilValue
+                (IntValue _, NilValue _, "==") => new BoolValue(false),
 
                 // ******** decimal ********
                 // DecimalValue == DecimalValue
@@ -638,24 +812,32 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
                 (DecimalValue l, IntValue r, "==") => new BoolValue(l.Value == r.Value),
                 // DecimalValue != IntValue
                 (DecimalValue l, IntValue r, "!=") => new BoolValue(l.Value != r.Value),
+                // DecimalValue == NilValue
+                (DecimalValue _, NilValue _, "==") => new BoolValue(false),
 
                 // ******** bool ********
                 // BoolValue == BoolValue
                 (BoolValue l, BoolValue r, "==") => new BoolValue(l.Value == r.Value),
                 // BoolValue != BoolValue
                 (BoolValue l, BoolValue r, "!=") => new BoolValue(l.Value != r.Value),
+                // BoolValue == NilValue
+                (BoolValue _, NilValue _, "==") => new BoolValue(false),
 
                 // ******** string ********
                 // StringValue == StringValue
                 (StringValue l, StringValue r, "==") => new BoolValue(l.Value == r.Value),
                 // StringValue != StringValue
                 (StringValue l, StringValue r, "!=") => new BoolValue(l.Value != r.Value),
+                // StringValue == NilValue
+                (StringValue _, NilValue _, "==") => new BoolValue(false),
 
                 // ******** rune ********
                 // RuneValue == RuneValue
                 (RuneValue l, RuneValue r, "==") => new BoolValue(l.Value == r.Value),
                 // RuneValue != RuneValue
                 (RuneValue l, RuneValue r, "!=") => new BoolValue(l.Value != r.Value),
+                // RuneValue == NilValue
+                (RuneValue _, NilValue _, "==") => new BoolValue(false),
 
                 _ => throw new System.Exception("Operacion invalida")
             };
@@ -1060,7 +1242,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             string type = context.type().GetText();
             var values = new List<ValueWrapper>();
 
-            simbolos.AddSymbol(new Symbol(id,"Slice", type, context.Start.Line, context.Start.Column));
+            simbolos.AddSymbol(new Symbol(id, "Slice", type, context.Start.Line, context.Start.Column));
 
             // Recoger los valores iniciales
             foreach (var expr in context.exprList().expr())
@@ -1094,7 +1276,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             string type = context.type().GetText();
             currentEnvironment.DeclareSlice(id, type);
 
-            simbolos.AddSymbol(new Symbol(id,"Slice", type, context.Start.Line, context.Start.Column));
+            simbolos.AddSymbol(new Symbol(id, "Slice", type, context.Start.Line, context.Start.Column));
 
             return defaultValue;
         }
@@ -1183,7 +1365,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             string type = context.type().GetText();
             var outerSlice = new SliceValue($"[]{type}");
 
-            simbolos.AddSymbol(new Symbol(id,"Slice", type, context.Start.Line, context.Start.Column));
+            simbolos.AddSymbol(new Symbol(id, "Slice", type, context.Start.Line, context.Start.Column));
 
             // Procesar cada arrayContent que representa una fila
             foreach (var arrayContent in context.arrayContent())
@@ -1319,6 +1501,8 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             ("string", StringValue _) => true,
             ("bool", BoolValue _) => true,
             ("rune", RuneValue _) => true,
+            (_, StructValue s) => s.GetType().Name == type,
+            (_, NilValue _) => true,
             _ => false
         };
     }
@@ -1355,22 +1539,94 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     {
         ValueWrapper callee = Visit(context.expr());
 
-        System.Console.WriteLine(callee);
-
-        foreach (var call in context.call())
+        foreach (var action in context.call())
         {
-            if (callee is FunctionValue functionValue)
+            if (action is LanguageParser.FuncCallContext funcall)
             {
-                callee = VisitCall(functionValue.invocable, call.exprList());
+                if (callee is FunctionValue functionValue)
+                {
+                    var args = new List<ValueWrapper>();
+                    if (funcall.exprList() != null)
+                    {
+                        foreach (var expr in funcall.exprList().expr())
+                        {
+                            args.Add(Visit(expr));
+                        }
+                    }
+                    callee = functionValue.invocable.Invoke(args, this);
+                }
+                else if (callee is StructValue structValue)
+                {
+                    string methodName = funcall.GetText().Split('(')[0];
+                    var method = structValue.Get(methodName);
+
+                    if (method is FunctionValue methodValue)
+                    {
+                        var args = new List<ValueWrapper> { structValue };
+                        if (funcall.exprList() != null)
+                        {
+                            foreach (var expr in funcall.exprList().expr())
+                            {
+                                args.Add(Visit(expr));
+                            }
+                        }
+                        callee = methodValue.invocable.Invoke(args, this);
+                    }
+                    else
+                    {
+                        throw new Exception($"Error: {methodName} no es un método");
+                    }
+                }
+                else if (callee is NilValue)
+                {
+                    throw new Exception("Error: No se puede llamar a un método de nil");
+                }
+                else
+                {
+                    throw new Exception("Error: No se puede llamar a un valor que no es una función");
+                }
             }
-            else
+            else if (action is LanguageParser.GetContext propertyAccess)
             {
-                throw new Exception("Error: No se puede llamar a un valor que no es una función.");
+                if (callee is StructValue structValue)
+                {
+                    string memberName = propertyAccess.ID().GetText();
+                    callee = structValue.Get(memberName);
+                }
+                else if (callee is NilValue)
+                {
+                    // Devolver nil en lugar de lanzar una excepción para que se pueda verificar si un campo es nil
+                    callee = new NilValue();
+                }
+                else
+                {
+                    throw new Exception("Error: No se puede acceder a una propiedad de un no-struct");
+                }
             }
         }
 
-
         return callee;
+    }
+
+    // VisitCallEmbebida
+    public ValueWrapper VisitCallEmbebida(Invocable invocable, LanguageParser.ExprListContext context)
+    {
+        List<ValueWrapper> arguments = new List<ValueWrapper>();
+
+        if (context != null)
+        {
+            foreach (var expr in context.expr())
+            {
+                arguments.Add(Visit(expr));
+            }
+        }
+
+        if (context != null && arguments.Count != invocable.Arity())
+        {
+            throw new Exception($"Error: Se esperaban {invocable.Arity()} argumentos, pero se recibieron {arguments.Count}");
+        }
+
+        return invocable.Invoke(arguments, this);
     }
 
     // VisitAtioCall
@@ -1379,7 +1635,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         var atoiFunc = currentEnvironment.GetVariable("strconv.Atoi", context.Start.Line, context.Start.Column);
         if (atoiFunc is FunctionValue functionValue)
         {
-            return VisitCall(functionValue.invocable, context.call().exprList());
+            return VisitCall(functionValue.invocable, context.callEmbebida().exprList());
         }
         throw new Exception("Error: strconv.Atoi no está definida");
     }
@@ -1390,7 +1646,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
         var parseFloatFunc = currentEnvironment.GetVariable("strconv.ParseFloat", context.Start.Line, context.Start.Column);
         if (parseFloatFunc is FunctionValue functionValue)
         {
-            return VisitCall(functionValue.invocable, context.call().exprList());
+            return VisitCall(functionValue.invocable, context.callEmbebida().exprList());
         }
         throw new Exception("Error: strconv.ParseFloat no está definida");
     }
@@ -1404,7 +1660,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             var typeOfFunc = currentEnvironment.GetVariable("reflect.TypeOf", context.Start.Line, context.Start.Column);
             if (typeOfFunc is FunctionValue functionValue)
             {
-                return VisitCall(functionValue.invocable, context.call().exprList());
+                return VisitCall(functionValue.invocable, context.callEmbebida().exprList());
             }
             throw new Exception("Error: reflect.TypeOf no está definida");
         }
@@ -1426,7 +1682,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
 
             if (indexFunc is FunctionValue functionValue)
             {
-                return VisitCall(functionValue.invocable, context.call().exprList());
+                return VisitCall(functionValue.invocable, context.callEmbebida().exprList());
             }
             throw new Exception("Error: slices.Index no está definida");
         }
@@ -1445,7 +1701,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             var joinFunc = currentEnvironment.GetVariable("strings.Join", context.Start.Line, context.Start.Column);
             if (joinFunc is FunctionValue functionValue)
             {
-                return VisitCall(functionValue.invocable, context.call().exprList());
+                return VisitCall(functionValue.invocable, context.callEmbebida().exprList());
             }
             throw new Exception("Error: strings.Join no está definida");
         }
@@ -1464,7 +1720,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             var lenFunc = currentEnvironment.GetVariable("len", context.Start.Line, context.Start.Column);
             if (lenFunc is FunctionValue functionValue)
             {
-                return VisitCall(functionValue.invocable, context.call().exprList());
+                return VisitCall(functionValue.invocable, context.callEmbebida().exprList());
             }
             throw new Exception("Error: len no está definida");
         }
@@ -1483,7 +1739,7 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
             var appendFunc = currentEnvironment.GetVariable("append", context.Start.Line, context.Start.Column);
             if (appendFunc is FunctionValue functionValue)
             {
-                return VisitCall(functionValue.invocable, context.call().exprList());
+                return VisitCall(functionValue.invocable, context.callEmbebida().exprList());
             }
             throw new Exception("Error: append no está definida");
         }
@@ -1520,13 +1776,173 @@ public class CompilerVisitor : LanguageBaseVisitor<ValueWrapper>
     // VisitFuncDCl
     public override ValueWrapper VisitFuncDCl(LanguageParser.FuncDClContext context)
     {
+        try
+        {
+            // Verificar si es un método de struct (tiene receptor)
+            if (context.ID().Length > 1)
+            {
+                string receiverName = context.ID(0).GetText();
+                string structType = context.ID(1).GetText();
+                string methodName = context.ID(2).GetText();
 
-        simbolos.AddSymbol(new Symbol(context.ID().GetText(), "Funcion", context.type()?.GetText() ?? "void", context.Start.Line, context.Start.Column));
+                // Obtener el struct del entorno
+                var structVar = currentEnvironment.GetVariable(structType, context.Start.Line, context.Start.Column);
+                if (structVar is not StructValue structDef)
+                {
+                    throw new Exception($"Error: {structType} no es un struct");
+                }
 
-        var foreign = new ForeignFunction(currentEnvironment, context);
-        currentEnvironment.DeclareVariable(context.ID().GetText(), new FunctionValue(foreign, context.ID().GetText()), context.Start.Line, context.Start.Column);
+                // Crear el método
+                var method = new ForeignFunction(currentEnvironment, context);
 
-        return defaultValue;
+                // Agregar el método al struct
+                structDef.GetType().Methods[methodName] = method;
+
+                return defaultValue;
+            }
+            else
+            {
+                // Es una función normal
+                string functionName = context.ID(0).GetText();
+                var function = new ForeignFunction(currentEnvironment, context);
+                currentEnvironment.DeclareVariable(functionName, new FunctionValue(function, functionName),
+                    context.Start.Line, context.Start.Column);
+                return defaultValue;
+            }
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // ******** structs ********
+
+    // VisitStructDcl
+
+    public override ValueWrapper VisitStructDcl(LanguageParser.StructDclContext context)
+    {
+        try
+        {
+            string structName = context.ID().GetText();
+            var structType = new Struct(structName);
+
+            // Procesar campos
+            foreach (var field in context.structBody())
+            {
+                var varDcl = field.varDCLstruct();
+                string fieldName = varDcl.ID(0).GetText();
+                string fieldType;
+
+                // Si hay dos ID el segundo es el tipo del struct
+                if (varDcl.ID().Length > 1)
+                {
+                    fieldType = varDcl.ID(1).GetText();
+                }
+                else
+                {
+                    fieldType = varDcl.type().GetText();
+                }
+
+                structType.Fields[fieldName] = fieldType;
+            }
+
+            // Registrar el tipo de struct
+            currentEnvironment.DeclareVariable(structName, new StructValue(structType),
+                context.Start.Line, context.Start.Column);
+
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    // VisitStructInst
+    public override ValueWrapper VisitStructInst(LanguageParser.StructInstContext context)
+    {
+        try
+        {
+            string structType = context.ID(0).GetText();
+            var structVar = currentEnvironment.GetVariable(structType, context.Start.Line, context.Start.Column);
+
+            if (structVar is not StructValue structDef)
+            {
+                throw new Exception($"Error: {structType} no es un struct");
+            }
+
+            var newInstance = structDef.GetType().CreateInstance();
+
+            // Inicializar campos
+            for (int i = 1; i < context.ID().Length; i++)
+            {
+                string fieldName = context.ID(i).GetText();
+                ValueWrapper value = Visit(context.expr(i - 1));
+
+                if (!structDef.GetType().Fields.ContainsKey(fieldName))
+                {
+                    throw new Exception($"Error: El campo '{fieldName}' no existe en el struct '{structType}'");
+                }
+
+                // Manejar asignación de nil explícitamente
+                if (value is NilValue && !IsBuiltInType(structDef.GetType().Fields[fieldName]))
+                {
+                    newInstance.Set(fieldName, value);
+                    continue;
+                }
+
+                // Verificar tipo y asignar
+                if (!IsCompatibleType(value, structDef.GetType().Fields[fieldName]))
+                {
+                    throw new Exception($"Tipo incompatible para el campo '{fieldName}'");
+                }
+
+                newInstance.Set(fieldName, value);
+            }
+
+            return newInstance;
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
+    }
+
+    private bool IsBuiltInType(string type)
+    {
+        return type switch
+        {
+            "int" or "float64" or "string" or "bool" or "rune" => true,
+            _ => false
+        };
+    }
+
+    // VisitvarDCLstruct
+    public override ValueWrapper VisitVarDCLstruct(LanguageParser.VarDCLstructContext context)
+    {
+        try
+        {
+            string id = context.ID(0).GetText();
+            string type = context.type().GetText();
+            var structValue = currentEnvironment.GetVariable(type, context.Start.Line, context.Start.Column);
+
+            if (structValue is not StructValue structType)
+            {
+                throw new Exception($"Error: {type} no es un struct");
+            }
+
+            currentEnvironment.DeclareVariable(id, structValue, context.Start.Line, context.Start.Column);
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            errores.Add(new Errores("Semantico", ex.Message, context.Start.Line, context.Start.Column));
+            return defaultValue;
+        }
     }
 
 }
